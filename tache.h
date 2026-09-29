@@ -1,7 +1,7 @@
 #ifndef TACHE_H
 #define TACHE_H
 
-#define NOM_MAX    32
+#define NOM_MAX    11   /* 10 caractères + fin de chaîne (largeur des tableaux) */
 #define TACHES_MAX 64
 
 /* Une tâche périodique temps réel (modèle du cours : C, D, T, P).

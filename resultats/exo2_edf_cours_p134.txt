@@ -1,3 +1,4 @@
+$ ./ordo exemples/cours_edf_p134.txt -p edf -v -a 28
 2 tâche(s) lue(s) depuis exemples/cours_edf_p134.txt :
 +------------+------+------+------+----------+
 | Tache      |    C |    D |    T | Priorité |
@@ -30,41 +31,60 @@ U <= 1 est nécessaire ET suffisante => FAISABLE.
 Journal des événements (jusqu'à t = 28) :
   t=   0 : activation de tau1 (échéance absolue 4)
   t=   0 : activation de tau2 (échéance absolue 7)
-  t=   0 : tau1 élue (échéance absolue la plus proche : 4)
+  t=   0 : file parcourue : tau1(éch. 4) tau2(éch. 7)
+  t=   0 : -> tau1 élue (échéance absolue la plus proche)
   t=   2 : fin de tau1 (temps de réponse 2)
-  t=   2 : tau2 élue (échéance absolue la plus proche : 7)
+  t=   2 : file parcourue : tau2(éch. 7)
+  t=   2 : -> tau2 élue (échéance absolue la plus proche)
   t=   4 : activation de tau1 (échéance absolue 8)
+  t=   4 : file parcourue : tau1(éch. 8) tau2(éch. 7)
+  t=   4 : -> tau2 garde le processeur (échéance absolue la plus proche)
   t=   5 : fin de tau2 (temps de réponse 5)
-  t=   5 : tau1 élue (échéance absolue la plus proche : 8)
+  t=   5 : file parcourue : tau1(éch. 8)
+  t=   5 : -> tau1 élue (échéance absolue la plus proche)
   t=   7 : fin de tau1 (temps de réponse 3)
   t=   7 : activation de tau2 (échéance absolue 14)
-  t=   7 : tau2 élue (échéance absolue la plus proche : 14)
+  t=   7 : file parcourue : tau2(éch. 14)
+  t=   7 : -> tau2 élue (échéance absolue la plus proche)
   t=   8 : activation de tau1 (échéance absolue 12)
+  t=   8 : file parcourue : tau1(éch. 12) tau2(éch. 14)
+  t=   8 : -> tau1 élue (échéance absolue la plus proche)
   t=   8 : tau2 préemptée par tau1
-  t=   8 : tau1 élue (échéance absolue la plus proche : 12)
   t=  10 : fin de tau1 (temps de réponse 2)
-  t=  10 : tau2 élue (échéance absolue la plus proche : 14)
+  t=  10 : file parcourue : tau2(éch. 14)
+  t=  10 : -> tau2 élue (échéance absolue la plus proche)
   t=  12 : fin de tau2 (temps de réponse 5)
   t=  12 : activation de tau1 (échéance absolue 16)
-  t=  12 : tau1 élue (échéance absolue la plus proche : 16)
+  t=  12 : file parcourue : tau1(éch. 16)
+  t=  12 : -> tau1 élue (échéance absolue la plus proche)
   t=  14 : fin de tau1 (temps de réponse 2)
   t=  14 : activation de tau2 (échéance absolue 21)
-  t=  14 : tau2 élue (échéance absolue la plus proche : 21)
+  t=  14 : file parcourue : tau2(éch. 21)
+  t=  14 : -> tau2 élue (échéance absolue la plus proche)
   t=  16 : activation de tau1 (échéance absolue 20)
+  t=  16 : file parcourue : tau1(éch. 20) tau2(éch. 21)
+  t=  16 : -> tau1 élue (échéance absolue la plus proche)
   t=  16 : tau2 préemptée par tau1
-  t=  16 : tau1 élue (échéance absolue la plus proche : 20)
   t=  18 : fin de tau1 (temps de réponse 2)
-  t=  18 : tau2 élue (échéance absolue la plus proche : 21)
+  t=  18 : file parcourue : tau2(éch. 21)
+  t=  18 : -> tau2 élue (échéance absolue la plus proche)
   t=  19 : fin de tau2 (temps de réponse 5)
   t=  19 : processeur oisif
   t=  20 : activation de tau1 (échéance absolue 24)
-  t=  20 : tau1 élue (échéance absolue la plus proche : 24)
+  t=  20 : file parcourue : tau1(éch. 24)
+  t=  20 : -> tau1 élue (échéance absolue la plus proche)
   t=  21 : activation de tau2 (échéance absolue 28)
+  t=  21 : file parcourue : tau1(éch. 24) tau2(éch. 28)
+  t=  21 : -> tau1 garde le processeur (échéance absolue la plus proche)
   t=  22 : fin de tau1 (temps de réponse 2)
-  t=  22 : tau2 élue (échéance absolue la plus proche : 28)
+  t=  22 : file parcourue : tau2(éch. 28)
+  t=  22 : -> tau2 élue (échéance absolue la plus proche)
   t=  24 : activation de tau1 (échéance absolue 28)
+  t=  24 : file parcourue : tau1(éch. 28) tau2(éch. 28)
+  t=  24 : -> tau2 garde le processeur (échéance absolue la plus proche)
   t=  25 : fin de tau2 (temps de réponse 4)
-  t=  25 : tau1 élue (échéance absolue la plus proche : 28)
+  t=  25 : file parcourue : tau1(éch. 28)
+  t=  25 : -> tau1 élue (échéance absolue la plus proche)
   t=  27 : fin de tau1 (temps de réponse 3)
   t=  27 : processeur oisif
 
@@ -78,6 +98,10 @@ Légende : # exécution   - prête mais en attente   . inactive   X échéance r
 Pire temps de réponse observé : tau1=3 tau2=5
 Préemptions : 2
 => Simulation EDF préemptive : aucune échéance ratée sur [0, 28] => FAISABLE
+
+Temps de réponse de chaque activation a dans la période active [0, 7[ :
+  tau1       a=0:r=2 a=4:r=3  -> max = 3
+  tau2       a=0:r=5  -> max = 5
 
 ==================== RÉCAPITULATIF ====================
 +-----------+----------------+---------------------+---------------------+

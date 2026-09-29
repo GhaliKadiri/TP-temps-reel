@@ -1,0 +1,6 @@
+# U = 1/5 + 2/5 + 3/10 + 1/10 = 1 exactement : piège d'arrondi en virgule flottante
+# (en double, la somme vaut 1.0000000000000002). Doit être FAISABLE partout.
+A   1  5   5   4
+B   2  5   5   3
+C   3  10  10  2
+D   1  10  10  1

@@ -1,3 +1,4 @@
+$ ./ordo exemples/cours_optimalite.txt
 2 tâche(s) lue(s) depuis exemples/cours_optimalite.txt :
 +------------+------+------+------+----------+
 | Tache      |    C |    D |    T | Priorité |
@@ -16,8 +17,10 @@ Ordre de priorité : tau2 > tau1
 
 -- Étape 1 : charge processeur --
 U = 3/7 + 2/8 = 0.679
-U <= 1 : condition nécessaire respectée. (La borne de Liu & Layland 0.828
-ne s'applique qu'à RM avec D = T : elle n'est pas utilisée ici.)
+U <= 1 : condition nécessaire respectée.
+Borne de Liu & Layland : U_RM = 2(2^(1/2) - 1) = 0.8284
+U <= U_RM, mais cette condition suffisante n'est démontrée que pour
+RM avec D = T : on ne peut pas conclure pour HPF.
 
 -- Étape 2 : temps de réponse (condition nécessaire et suffisante) --
 +------------+------+------+------+------+------+----------+
@@ -50,8 +53,10 @@ Ordre de priorité : tau2 > tau1
 
 -- Étape 1 : charge processeur --
 U = 3/7 + 2/8 = 0.679
-U <= 1 : condition nécessaire respectée. (La borne de Liu & Layland 0.828
-ne s'applique qu'à RM avec D = T : elle n'est pas utilisée ici.)
+U <= 1 : condition nécessaire respectée.
+Borne de Liu & Layland : U_RM = 2(2^(1/2) - 1) = 0.8284
+U <= U_RM, mais cette condition suffisante n'est démontrée que pour
+RM avec D = T : on ne peut pas conclure pour RM.
 
 -- Étape 2 : temps de réponse (condition nécessaire et suffisante) --
 +------------+------+------+------+------+------+----------+
@@ -84,8 +89,10 @@ Ordre de priorité : tau1 > tau2
 
 -- Étape 1 : charge processeur --
 U = 2/8 + 3/7 = 0.679
-U <= 1 : condition nécessaire respectée. (La borne de Liu & Layland 0.828
-ne s'applique qu'à RM avec D = T : elle n'est pas utilisée ici.)
+U <= 1 : condition nécessaire respectée.
+Borne de Liu & Layland : U_RM = 2(2^(1/2) - 1) = 0.8284
+U <= U_RM, mais cette condition suffisante n'est démontrée que pour
+RM avec D = T : on ne peut pas conclure pour DM.
 
 -- Étape 2 : temps de réponse (condition nécessaire et suffisante) --
 +------------+------+------+------+------+------+----------+
@@ -137,6 +144,10 @@ Légende : # exécution   - prête mais en attente   . inactive   X échéance r
 Pire temps de réponse observé : tau1=3 tau2=5
 Préemptions : 1
 => Simulation EDF préemptive : aucune échéance ratée sur [0, 56] => FAISABLE
+
+Temps de réponse de chaque activation a dans la période active [0, 5[ :
+  tau1       a=0:r=2  -> max = 2  (pire cas plus tard : r=3 pour a=16)
+  tau2       a=0:r=5  -> max = 5
 
 ==================== RÉCAPITULATIF ====================
 +-----------+----------------+---------------------+---------------------+

@@ -29,11 +29,26 @@ int lire_taches(const char *chemin, Ensemble *e)
         }
 
         Tache *t = &e->t[e->n];
-        if (sscanf(p, "%31s %d %d %d %d", t->nom, &t->C, &t->D, &t->T, &t->prio) != 5) {
+        char nom[256];
+        int lus = 0;
+        if (sscanf(p, "%255s %d %d %d %d %n", nom, &t->C, &t->D, &t->T, &t->prio, &lus) != 5) {
             fprintf(stderr, "%s:%d : format attendu \"nom C D T prio\"\n", chemin, num_ligne);
             fclose(f);
             return -1;
         }
+        /* après les 5 champs, seul un commentaire est accepté */
+        if (p[lus] != '\0' && p[lus] != '#') {
+            fprintf(stderr, "%s:%d : champ en trop après \"nom C D T prio\"\n", chemin, num_ligne);
+            fclose(f);
+            return -1;
+        }
+        if (strlen(nom) >= NOM_MAX) {
+            fprintf(stderr, "%s:%d : nom \"%s\" trop long (%d caractères max)\n",
+                    chemin, num_ligne, nom, NOM_MAX - 1);
+            fclose(f);
+            return -1;
+        }
+        strcpy(t->nom, nom);
         /* contrôles de cohérence du modèle de tâche */
         if (t->C <= 0 || t->D <= 0 || t->T <= 0) {
             fprintf(stderr, "%s:%d : C, D et T doivent être > 0\n", chemin, num_ligne);

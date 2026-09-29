@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <limits.h>
 #include "analyse.h"
 
 const char *nom_politique(Politique p)
@@ -91,25 +92,54 @@ static long plafond(long a, long b)
     return (a + b - 1) / b;
 }
 
-static long pgcd(long a, long b)
+static long long pgcd(long long a, long long b)
 {
-    while (b != 0) { long r = a % b; a = b; b = r; }
+    while (b != 0) { long long r = a % b; a = b; b = r; }
     return a;
 }
 
-long hyperperiode(const Ensemble *e, long plafond_max)
+int charge_superieure_a_1(const Tache t[], int n)
+{
+    /* Test exact : U = num/den est tenu en fraction (den = PPCM des Ti vus).
+     * En flottant, 1/5 + 2/5 + 3/10 + 1/10 donne 1.0000000000000002 > 1 ! */
+    long long num = 0, den = 1;
+    for (int i = 0; i < n; i++) {
+        long long g = den / pgcd(den, t[i].T);
+        long long nouveau_den, a, b;
+        if (__builtin_mul_overflow(g, (long long)t[i].T, &nouveau_den)
+            || __builtin_mul_overflow(num, nouveau_den / den, &a)
+            || __builtin_mul_overflow((long long)t[i].C, nouveau_den / t[i].T, &b)
+            || a > LLONG_MAX - b)
+            goto flottant;   /* périodes énormes : repli sur les flottants */
+        num = a + b;
+        den = nouveau_den;
+    }
+    return num > den;
+
+flottant:;
+    double U = 0.0;
+    for (int i = 0; i < n; i++)
+        U += (double)t[i].C / t[i].T;
+    return U > 1.0 + 1e-9;
+}
+
+long hyperperiode(const Ensemble *e, long plafond_max, int *plafonne)
 {
     long h = 1;
+    *plafonne = 0;
     for (int i = 0; i < e->n; i++) {
-        h = h / pgcd(h, e->t[i].T) * e->t[i].T;
-        if (h > plafond_max) return plafond_max;
+        h = (long)(h / pgcd(h, e->t[i].T)) * e->t[i].T;
+        if (h > plafond_max) {
+            *plafonne = 1;
+            return plafond_max;
+        }
     }
     return h;
 }
 
 long periode_active(const Ensemble *e, int trace)
 {
-    if (charge(e) > 1.0)
+    if (charge_superieure_a_1(e->t, e->n))
         return R_INFINI;
 
     /* cours p.129 : on part de t = 1 et on itère t = W(t) jusqu'à stabilité */
@@ -129,10 +159,7 @@ long temps_reponse(const Ensemble *e, int i, int trace)
 {
     /* Si les tâches 0..i chargent le CPU à plus de 100 %,
      * la suite r(n) croît indéfiniment : pas de point fixe. */
-    double U = 0.0;
-    for (int j = 0; j <= i; j++)
-        U += (double)e->t[j].C / e->t[j].T;
-    if (U > 1.0)
+    if (charge_superieure_a_1(e->t, i + 1))
         return R_INFINI;
 
     /* r(0) = Ci
@@ -185,21 +212,29 @@ static int analyser_priorite_fixe(const Ensemble *orig, Politique p, long R[], i
     /* ---- Étape 1 : condition de charge (nécessaire) ---- */
     double U = charge(&e);
     afficher_charge(&e, U);
-    if (U > 1.0) {
+    if (charge_superieure_a_1(e.t, e.n)) {
         printf("U > 1 : processeur surchargé => NON FAISABLE quelle que soit la politique.\n");
         for (int i = 0; i < e.n; i++) R[e.t[i].id] = R_INFINI;
         return 0;
     }
 
+    /* Borne de Liu & Layland (cours p.115-116). Le cours arrondit
+     * 3(2^(1/3) - 1) = 0.7798 à 0.779 ; on affiche 4 décimales. */
     double Ub = borne_liu_layland(e.n);
+    printf("U <= 1 : condition nécessaire respectée.\n");
+    printf("Borne de Liu & Layland : U_RM = %d(2^(1/%d) - 1) = %.4f\n", e.n, e.n, Ub);
     if (p == RM && d_egal_t(&e)) {
         if (U <= Ub)
-            printf("U <= U_RM = %.3f : condition suffisante de Liu & Layland => faisable.\n", Ub);
+            printf("U <= U_RM : condition suffisante => FAISABLE (confirmé ci-dessous).\n");
         else
-            printf("U_RM = %.3f < U <= 1 : la charge ne permet pas de conclure.\n", Ub);
+            printf("U_RM < U <= 1 : la charge ne permet pas de conclure.\n");
     } else {
-        printf("U <= 1 : condition nécessaire respectée. (La borne de Liu & Layland %.3f\n"
-               "ne s'applique qu'à RM avec D = T : elle n'est pas utilisée ici.)\n", Ub);
+        if (U <= Ub)
+            printf("U <= U_RM, mais cette condition suffisante n'est démontrée que pour\n"
+                   "RM avec D = T : on ne peut pas conclure pour %s.\n", nom_politique(p));
+        else
+            printf("U_RM < U <= 1 : la charge ne permet pas de conclure\n"
+                   "(la borne ne vaut d'ailleurs que pour RM avec D = T).\n");
     }
 
     /* ---- Étape 2 : temps de réponse (nécessaire et suffisante) ---- */
@@ -233,7 +268,7 @@ static int analyser_edf(const Ensemble *e, int trace)
 {
     double U = charge(e);
     afficher_charge(e, U);
-    if (U > 1.0) {
+    if (charge_superieure_a_1(e->t, e->n)) {
         printf("U > 1 : processeur surchargé => NON FAISABLE (même EDF, pourtant optimal).\n");
         return 0;
     }

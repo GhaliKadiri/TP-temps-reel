@@ -1,3 +1,4 @@
+$ ./ordo exemples/taches_tp.txt -p edf -v -a 40
 3 tâche(s) lue(s) depuis exemples/taches_tp.txt :
 +------------+------+------+------+----------+
 | Tache      |    C |    D |    T | Priorité |
@@ -40,50 +41,79 @@ Journal des événements (jusqu'à t = 40) :
   t=   0 : activation de Thread1 (échéance absolue 7)
   t=   0 : activation de Thread2 (échéance absolue 11)
   t=   0 : activation de Thread3 (échéance absolue 13)
-  t=   0 : Thread1 élue (échéance absolue la plus proche : 7)
+  t=   0 : file parcourue : Thread1(éch. 7) Thread2(éch. 11) Thread3(éch. 13)
+  t=   0 : -> Thread1 élue (échéance absolue la plus proche)
   t=   2 : fin de Thread1 (temps de réponse 2)
-  t=   2 : Thread2 élue (échéance absolue la plus proche : 11)
+  t=   2 : file parcourue : Thread2(éch. 11) Thread3(éch. 13)
+  t=   2 : -> Thread2 élue (échéance absolue la plus proche)
   t=   5 : fin de Thread2 (temps de réponse 5)
-  t=   5 : Thread3 élue (échéance absolue la plus proche : 13)
+  t=   5 : file parcourue : Thread3(éch. 13)
+  t=   5 : -> Thread3 élue (échéance absolue la plus proche)
   t=   7 : activation de Thread1 (échéance absolue 14)
+  t=   7 : file parcourue : Thread1(éch. 14) Thread3(éch. 13)
+  t=   7 : -> Thread3 garde le processeur (échéance absolue la plus proche)
   t=  10 : fin de Thread3 (temps de réponse 10)
-  t=  10 : Thread1 élue (échéance absolue la plus proche : 14)
+  t=  10 : file parcourue : Thread1(éch. 14)
+  t=  10 : -> Thread1 élue (échéance absolue la plus proche)
   t=  11 : activation de Thread2 (échéance absolue 22)
+  t=  11 : file parcourue : Thread1(éch. 14) Thread2(éch. 22)
+  t=  11 : -> Thread1 garde le processeur (échéance absolue la plus proche)
   t=  12 : fin de Thread1 (temps de réponse 5)
-  t=  12 : Thread2 élue (échéance absolue la plus proche : 22)
+  t=  12 : file parcourue : Thread2(éch. 22)
+  t=  12 : -> Thread2 élue (échéance absolue la plus proche)
   t=  13 : activation de Thread3 (échéance absolue 26)
+  t=  13 : file parcourue : Thread2(éch. 22) Thread3(éch. 26)
+  t=  13 : -> Thread2 garde le processeur (échéance absolue la plus proche)
   t=  14 : activation de Thread1 (échéance absolue 21)
+  t=  14 : file parcourue : Thread1(éch. 21) Thread2(éch. 22) Thread3(éch. 26)
+  t=  14 : -> Thread1 élue (échéance absolue la plus proche)
   t=  14 : Thread2 préemptée par Thread1
-  t=  14 : Thread1 élue (échéance absolue la plus proche : 21)
   t=  16 : fin de Thread1 (temps de réponse 2)
-  t=  16 : Thread2 élue (échéance absolue la plus proche : 22)
+  t=  16 : file parcourue : Thread2(éch. 22) Thread3(éch. 26)
+  t=  16 : -> Thread2 élue (échéance absolue la plus proche)
   t=  17 : fin de Thread2 (temps de réponse 6)
-  t=  17 : Thread3 élue (échéance absolue la plus proche : 26)
+  t=  17 : file parcourue : Thread3(éch. 26)
+  t=  17 : -> Thread3 élue (échéance absolue la plus proche)
   t=  21 : activation de Thread1 (échéance absolue 28)
+  t=  21 : file parcourue : Thread1(éch. 28) Thread3(éch. 26)
+  t=  21 : -> Thread3 garde le processeur (échéance absolue la plus proche)
   t=  22 : fin de Thread3 (temps de réponse 9)
   t=  22 : activation de Thread2 (échéance absolue 33)
-  t=  22 : Thread1 élue (échéance absolue la plus proche : 28)
+  t=  22 : file parcourue : Thread1(éch. 28) Thread2(éch. 33)
+  t=  22 : -> Thread1 élue (échéance absolue la plus proche)
   t=  24 : fin de Thread1 (temps de réponse 3)
-  t=  24 : Thread2 élue (échéance absolue la plus proche : 33)
+  t=  24 : file parcourue : Thread2(éch. 33)
+  t=  24 : -> Thread2 élue (échéance absolue la plus proche)
   t=  26 : activation de Thread3 (échéance absolue 39)
+  t=  26 : file parcourue : Thread2(éch. 33) Thread3(éch. 39)
+  t=  26 : -> Thread2 garde le processeur (échéance absolue la plus proche)
   t=  27 : fin de Thread2 (temps de réponse 5)
-  t=  27 : Thread3 élue (échéance absolue la plus proche : 39)
+  t=  27 : file parcourue : Thread3(éch. 39)
+  t=  27 : -> Thread3 élue (échéance absolue la plus proche)
   t=  28 : activation de Thread1 (échéance absolue 35)
+  t=  28 : file parcourue : Thread1(éch. 35) Thread3(éch. 39)
+  t=  28 : -> Thread1 élue (échéance absolue la plus proche)
   t=  28 : Thread3 préemptée par Thread1
-  t=  28 : Thread1 élue (échéance absolue la plus proche : 35)
   t=  30 : fin de Thread1 (temps de réponse 2)
-  t=  30 : Thread3 élue (échéance absolue la plus proche : 39)
+  t=  30 : file parcourue : Thread3(éch. 39)
+  t=  30 : -> Thread3 élue (échéance absolue la plus proche)
   t=  33 : activation de Thread2 (échéance absolue 44)
+  t=  33 : file parcourue : Thread2(éch. 44) Thread3(éch. 39)
+  t=  33 : -> Thread3 garde le processeur (échéance absolue la plus proche)
   t=  34 : fin de Thread3 (temps de réponse 8)
-  t=  34 : Thread2 élue (échéance absolue la plus proche : 44)
+  t=  34 : file parcourue : Thread2(éch. 44)
+  t=  34 : -> Thread2 élue (échéance absolue la plus proche)
   t=  35 : activation de Thread1 (échéance absolue 42)
+  t=  35 : file parcourue : Thread1(éch. 42) Thread2(éch. 44)
+  t=  35 : -> Thread1 élue (échéance absolue la plus proche)
   t=  35 : Thread2 préemptée par Thread1
-  t=  35 : Thread1 élue (échéance absolue la plus proche : 42)
   t=  37 : fin de Thread1 (temps de réponse 2)
-  t=  37 : Thread2 élue (échéance absolue la plus proche : 44)
+  t=  37 : file parcourue : Thread2(éch. 44)
+  t=  37 : -> Thread2 élue (échéance absolue la plus proche)
   t=  39 : fin de Thread2 (temps de réponse 6)
   t=  39 : activation de Thread3 (échéance absolue 52)
-  t=  39 : Thread3 élue (échéance absolue la plus proche : 52)
+  t=  39 : file parcourue : Thread3(éch. 52)
+  t=  39 : -> Thread3 élue (échéance absolue la plus proche)
 
 Chronogramme (t = 0 .. 40) :
 t          0    5    10   15   20   25   30   35      
@@ -96,6 +126,11 @@ Légende : # exécution   - prête mais en attente   . inactive   X échéance r
 Pire temps de réponse observé : Thread1=5 Thread2=9 Thread3=10
 Préemptions : 68
 => Simulation EDF préemptive : aucune échéance ratée sur [0, 1001] => FAISABLE
+
+Temps de réponse de chaque activation a dans la période active [0, 39[ :
+  Thread1    a=0:r=2 a=7:r=5 a=14:r=2 a=21:r=3 a=28:r=2 a=35:r=2  -> max = 5
+  Thread2    a=0:r=5 a=11:r=6 a=22:r=5 a=33:r=6  -> max = 6  (pire cas plus tard : r=9 pour a=913)
+  Thread3    a=0:r=10 a=13:r=9 a=26:r=8  -> max = 10
 
 ==================== RÉCAPITULATIF ====================
 +-----------+----------------+---------------------+---------------------+
