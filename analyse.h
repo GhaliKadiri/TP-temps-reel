@@ -3,31 +3,45 @@
 
 #include "tache.h"
 
-/* Politiques d'ordonnancement à priorités fixes. */
-typedef enum {
-    HPF     /* Highest Priority First : priorité = importance donnée */
-} Politique;
+#define R_INFINI (-1L)   /* temps de réponse non borné (divergence) */
+
+/* Politiques d'ordonnancement.
+ * HPF, RM, DM : priorités fixes (Exercice 1)
+ * EDF         : priorités dynamiques (Exercice 2) */
+typedef enum { HPF, RM, DM, EDF, NB_POLITIQUES } Politique;
 
 const char *nom_politique(Politique p);
+int  est_priorite_fixe(Politique p);
 
-/* Trie les tâches de la plus prioritaire à la moins prioritaire
- * selon la politique choisie. */
+/* Trie les tâches de la plus prioritaire à la moins prioritaire :
+ * HPF : plus grande importance (prio) d'abord
+ * RM  : plus petite période T d'abord
+ * DM  : plus petite échéance relative D d'abord
+ * Égalité : ordre du fichier. Uniquement pour les priorités fixes. */
 void trier_par_priorite(Ensemble *e, Politique p);
 
-/* Étape 1 du cours : U = somme des Ci/Ti. */
+/* U = somme des Ci/Ti */
 double charge(const Ensemble *e);
 
-/* Borne de Liu & Layland : n(2^(1/n) - 1). */
+/* Borne de Liu & Layland : n(2^(1/n) - 1) */
 double borne_liu_layland(int n);
 
-/* Étape 2 du cours : pire temps de réponse de la tâche i
- * (l'ensemble doit déjà être trié par priorité décroissante).
- * Retourne -1 si le calcul diverge (charge des tâches 0..i > 1).
- * Si trace != 0, affiche chaque itération. */
+/* PPCM des périodes (durée de simulation couvrant tous les scénarios).
+ * Plafonné à 'plafond' si le PPCM le dépasse. */
+long hyperperiode(const Ensemble *e, long plafond);
+
+/* Période d'étude (busy period) : plus petit t > 0 tel que
+ * t = W(t) = somme des plafond(t/Ti)*Ci. Retourne R_INFINI si U > 1. */
+long periode_active(const Ensemble *e, int trace);
+
+/* Pire temps de réponse de la tâche i, ensemble trié par priorité décroissante.
+ * Retourne R_INFINI si le calcul diverge. */
 long temps_reponse(const Ensemble *e, int i, int trace);
 
-/* Analyse complète : affiche U, les Ri et le verdict.
- * Retourne 1 si l'ensemble est faisable, 0 sinon. */
-int analyser(Ensemble *e, Politique p);
+/* Analyse théorique (préemptive) d'une politique.
+ * R[id] reçoit le temps de réponse calculé de chaque tâche (priorités fixes).
+ * Retourne 1 = faisable, 0 = non faisable, -1 = la théorie ne permet pas de
+ * conclure (c'est alors la simulation qui tranche). */
+int analyser(const Ensemble *e, Politique p, long R[], int trace);
 
 #endif

@@ -1,0 +1,4 @@
+# Cours p.134 : EDF, tau1(2,4,4) et tau2(3,7,7)
+# temps de réponse de tau2 attendus : 5, 5, 5, 4 aux activations 0, 7, 14, 21
+tau1    2  4  4  1
+tau2    3  7  7  1

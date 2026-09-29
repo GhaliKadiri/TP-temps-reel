@@ -46,6 +46,13 @@ int lire_taches(const char *chemin, Ensemble *e)
             fclose(f);
             return -1;
         }
+        if (t->D > t->T) {
+            /* les tests du cours (temps de réponse, EDF avec U <= 1) supposent D <= T */
+            fprintf(stderr, "%s:%d : D > T non supporté (modèle du cours : D <= T)\n",
+                    chemin, num_ligne);
+            fclose(f);
+            return -1;
+        }
         t->id = e->n;
         e->n++;
     }

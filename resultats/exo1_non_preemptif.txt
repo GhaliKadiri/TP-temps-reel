@@ -1,0 +1,147 @@
+2 tâche(s) lue(s) depuis exemples/non_preemptif.txt :
++------------+------+------+------+----------+
+| Tache      |    C |    D |    T | Priorité |
++------------+------+------+------+----------+
+| tau1       |    2 |    2 |    4 |        2 |
+| tau2       |    3 |   12 |   12 |        1 |
++------------+------+------+------+----------+
+Hyperpériode (PPCM des périodes) = 12 -> durée de simulation = 12
+Hypothèses : monoprocesseur, tâches indépendantes, toutes activées à t = 0,
+D <= T, priorité HPF : valeur plus grande = plus prioritaire.
+
+==================== HPF ====================
+(Highest Priority First : priorité = importance donnée)
+
+Ordre de priorité : tau1 > tau2
+
+-- Étape 1 : charge processeur --
+U = 2/4 + 3/12 = 0.750
+U <= 1 : condition nécessaire respectée. (La borne de Liu & Layland 0.828
+ne s'applique qu'à RM avec D = T : elle n'est pas utilisée ici.)
+
+-- Étape 2 : temps de réponse (condition nécessaire et suffisante) --
++------------+------+------+------+------+------+----------+
+| Tache      |    C |    D |    T | Prio |    R | R <= D ? |
++------------+------+------+------+------+------+----------+
+| tau1       |    2 |    2 |    4 |    2 |    2 | oui      |
+| tau2       |    3 |   12 |   12 |    1 |    7 | oui      |
++------------+------+------+------+------+------+----------+
+
+=> Analyse théorique HPF (préemptif) : FAISABLE
+
+--- Simulation HPF non préemptive sur [0, 12[ ---
+
+Chronogramme (t = 0 .. 12) :
+t          0    5    10   
+tau1       ##..-##.##..
+tau2       --###.......
+Depasse          X     
+Légende : # exécution   - prête mais en attente   . inactive   X échéance ratée à cet instant
+
+Pire temps de réponse observé : tau1=3 tau2=5
+Préemptions : 0
+=> Simulation HPF non préemptive : 1 échéance(s) ratée(s), la 1re à t=6 (tau1) => NON FAISABLE
+
+==================== RM ====================
+(Rate Monotonic : plus petite période = plus prioritaire)
+
+Ordre de priorité : tau1 > tau2
+
+-- Étape 1 : charge processeur --
+U = 2/4 + 3/12 = 0.750
+U <= 1 : condition nécessaire respectée. (La borne de Liu & Layland 0.828
+ne s'applique qu'à RM avec D = T : elle n'est pas utilisée ici.)
+
+-- Étape 2 : temps de réponse (condition nécessaire et suffisante) --
++------------+------+------+------+------+------+----------+
+| Tache      |    C |    D |    T | Prio |    R | R <= D ? |
++------------+------+------+------+------+------+----------+
+| tau1       |    2 |    2 |    4 |    2 |    2 | oui      |
+| tau2       |    3 |   12 |   12 |    1 |    7 | oui      |
++------------+------+------+------+------+------+----------+
+
+=> Analyse théorique RM (préemptif) : FAISABLE
+
+--- Simulation RM non préemptive sur [0, 12[ ---
+
+Chronogramme (t = 0 .. 12) :
+t          0    5    10   
+tau1       ##..-##.##..
+tau2       --###.......
+Depasse          X     
+Légende : # exécution   - prête mais en attente   . inactive   X échéance ratée à cet instant
+
+Pire temps de réponse observé : tau1=3 tau2=5
+Préemptions : 0
+=> Simulation RM non préemptive : 1 échéance(s) ratée(s), la 1re à t=6 (tau1) => NON FAISABLE
+
+==================== DM ====================
+(Deadline Monotonic : plus petite échéance relative = plus prioritaire)
+
+Ordre de priorité : tau1 > tau2
+
+-- Étape 1 : charge processeur --
+U = 2/4 + 3/12 = 0.750
+U <= 1 : condition nécessaire respectée. (La borne de Liu & Layland 0.828
+ne s'applique qu'à RM avec D = T : elle n'est pas utilisée ici.)
+
+-- Étape 2 : temps de réponse (condition nécessaire et suffisante) --
++------------+------+------+------+------+------+----------+
+| Tache      |    C |    D |    T | Prio |    R | R <= D ? |
++------------+------+------+------+------+------+----------+
+| tau1       |    2 |    2 |    4 |    2 |    2 | oui      |
+| tau2       |    3 |   12 |   12 |    1 |    7 | oui      |
++------------+------+------+------+------+------+----------+
+
+=> Analyse théorique DM (préemptif) : FAISABLE
+
+--- Simulation DM non préemptive sur [0, 12[ ---
+
+Chronogramme (t = 0 .. 12) :
+t          0    5    10   
+tau1       ##..-##.##..
+tau2       --###.......
+Depasse          X     
+Légende : # exécution   - prête mais en attente   . inactive   X échéance ratée à cet instant
+
+Pire temps de réponse observé : tau1=3 tau2=5
+Préemptions : 0
+=> Simulation DM non préemptive : 1 échéance(s) ratée(s), la 1re à t=6 (tau1) => NON FAISABLE
+
+==================== EDF ====================
+(Earliest Deadline First : plus proche échéance absolue = plus prioritaire)
+
+-- Étape 1 : charge processeur --
+U = 2/4 + 3/12 = 0.750
+
+-- Période d'étude (busy period) : t = W(t) --
+Période active = 7
+
+Il existe des tâches avec D < T : U <= 1 n'est que nécessaire.
+=> On ne peut pas conclure par la charge, la simulation tranche.
+
+=> Analyse théorique EDF (préemptif) : INDÉCIS (voir simulation)
+
+--- Simulation EDF non préemptive sur [0, 12[ ---
+
+Chronogramme (t = 0 .. 12) :
+t          0    5    10   
+tau1       ##..-##.##..
+tau2       --###.......
+Depasse          X     
+Légende : # exécution   - prête mais en attente   . inactive   X échéance ratée à cet instant
+
+Pire temps de réponse observé : tau1=3 tau2=5
+Préemptions : 0
+=> Simulation EDF non préemptive : 1 échéance(s) ratée(s), la 1re à t=6 (tau1) => NON FAISABLE
+
+==================== RÉCAPITULATIF ====================
++-----------+----------------+---------------------+---------------------+
+| Politique | Theorie        | Simu. preemptive    | Simu. non preempt.  |
++-----------+----------------+---------------------+---------------------+
+| HPF       | FAISABLE       | FAISABLE            | NON (t=6, tau1)     |
+| RM        | FAISABLE       | FAISABLE            | NON (t=6, tau1)     |
+| DM        | FAISABLE       | FAISABLE            | NON (t=6, tau1)     |
+| EDF       | indecis        | FAISABLE            | NON (t=6, tau1)     |
++-----------+----------------+---------------------+---------------------+
+(NON (t=x, tâche) : première échéance ratée à l'instant x)

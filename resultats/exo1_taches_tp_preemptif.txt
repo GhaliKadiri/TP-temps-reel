@@ -1,0 +1,518 @@
+3 tâche(s) lue(s) depuis exemples/taches_tp.txt :
++------------+------+------+------+----------+
+| Tache      |    C |    D |    T | Priorité |
++------------+------+------+------+----------+
+| Thread1    |    2 |    7 |    7 |       20 |
+| Thread2    |    3 |   11 |   11 |       15 |
+| Thread3    |    5 |   13 |   13 |       10 |
++------------+------+------+------+----------+
+Hyperpériode (PPCM des périodes) = 1001 -> durée de simulation = 1001
+Hypothèses : monoprocesseur, tâches indépendantes, toutes activées à t = 0,
+D <= T, priorité HPF : valeur plus grande = plus prioritaire.
+
+==================== HPF ====================
+(Highest Priority First : priorité = importance donnée)
+
+Ordre de priorité : Thread1 > Thread2 > Thread3
+
+-- Étape 1 : charge processeur --
+U = 2/7 + 3/11 + 5/13 = 0.943
+U <= 1 : condition nécessaire respectée. (La borne de Liu & Layland 0.780
+ne s'applique qu'à RM avec D = T : elle n'est pas utilisée ici.)
+
+-- Étape 2 : temps de réponse (condition nécessaire et suffisante) --
+  Thread1 :
+    r(0) = 2
+    r(1) = 2
+  Thread2 :
+    r(0) = 3
+    r(1) = 5
+    r(2) = 5
+  Thread3 :
+    r(0) = 5
+    r(1) = 10
+    r(2) = 12
+    r(3) = 15
+    r(4) = 17
+    r(5) = 17
++------------+------+------+------+------+------+----------+
+| Tache      |    C |    D |    T | Prio |    R | R <= D ? |
++------------+------+------+------+------+------+----------+
+| Thread1    |    2 |    7 |    7 |   20 |    2 | oui      |
+| Thread2    |    3 |   11 |   11 |   15 |    5 | oui      |
+| Thread3    |    5 |   13 |   13 |   10 |   17 | NON      |
++------------+------+------+------+------+------+----------+
+
+=> Analyse théorique HPF (préemptif) : NON FAISABLE
+
+--- Simulation HPF préemptive sur [0, 1001[ ---
+Journal des événements (jusqu'à t = 60) :
+  t=   0 : activation de Thread1 (échéance absolue 7)
+  t=   0 : activation de Thread2 (échéance absolue 11)
+  t=   0 : activation de Thread3 (échéance absolue 13)
+  t=   0 : Thread1 élue (rang de priorité 1)
+  t=   2 : fin de Thread1 (temps de réponse 2)
+  t=   2 : Thread2 élue (rang de priorité 2)
+  t=   5 : fin de Thread2 (temps de réponse 5)
+  t=   5 : Thread3 élue (rang de priorité 3)
+  t=   7 : activation de Thread1 (échéance absolue 14)
+  t=   7 : Thread3 préemptée par Thread1
+  t=   7 : Thread1 élue (rang de priorité 1)
+  t=   9 : fin de Thread1 (temps de réponse 2)
+  t=   9 : Thread3 élue (rang de priorité 3)
+  t=  11 : activation de Thread2 (échéance absolue 22)
+  t=  11 : Thread3 préemptée par Thread2
+  t=  11 : Thread2 élue (rang de priorité 2)
+  t=  13 : *** ÉCHÉANCE RATÉE *** Thread3 (activée à 0, il reste 1 unité(s))
+  t=  13 : activation de Thread3 (échéance absolue 26)
+  t=  14 : fin de Thread2 (temps de réponse 3)
+  t=  14 : activation de Thread1 (échéance absolue 21)
+  t=  14 : Thread1 élue (rang de priorité 1)
+  t=  16 : fin de Thread1 (temps de réponse 2)
+  t=  16 : Thread3 élue (rang de priorité 3)
+  t=  17 : fin de Thread3 (temps de réponse 17, EN RETARD)
+  t=  17 : Thread3 élue (rang de priorité 3)
+  t=  21 : activation de Thread1 (échéance absolue 28)
+  t=  21 : Thread3 préemptée par Thread1
+  t=  21 : Thread1 élue (rang de priorité 1)
+  t=  22 : activation de Thread2 (échéance absolue 33)
+  t=  23 : fin de Thread1 (temps de réponse 2)
+  t=  23 : Thread2 élue (rang de priorité 2)
+  t=  26 : fin de Thread2 (temps de réponse 4)
+  t=  26 : *** ÉCHÉANCE RATÉE *** Thread3 (activée à 13, il reste 1 unité(s))
+  t=  26 : activation de Thread3 (échéance absolue 39)
+  t=  26 : Thread3 élue (rang de priorité 3)
+  t=  27 : fin de Thread3 (temps de réponse 14, EN RETARD)
+  t=  27 : Thread3 élue (rang de priorité 3)
+  t=  28 : activation de Thread1 (échéance absolue 35)
+  t=  28 : Thread3 préemptée par Thread1
+  t=  28 : Thread1 élue (rang de priorité 1)
+  t=  30 : fin de Thread1 (temps de réponse 2)
+  t=  30 : Thread3 élue (rang de priorité 3)
+  t=  33 : activation de Thread2 (échéance absolue 44)
+  t=  33 : Thread3 préemptée par Thread2
+  t=  33 : Thread2 élue (rang de priorité 2)
+  t=  35 : activation de Thread1 (échéance absolue 42)
+  t=  35 : Thread2 préemptée par Thread1
+  t=  35 : Thread1 élue (rang de priorité 1)
+  t=  37 : fin de Thread1 (temps de réponse 2)
+  t=  37 : Thread2 élue (rang de priorité 2)
+  t=  38 : fin de Thread2 (temps de réponse 5)
+  t=  38 : Thread3 élue (rang de priorité 3)
+  t=  39 : fin de Thread3 (temps de réponse 13)
+  t=  39 : activation de Thread3 (échéance absolue 52)
+  t=  39 : Thread3 élue (rang de priorité 3)
+  t=  42 : activation de Thread1 (échéance absolue 49)
+  t=  42 : Thread3 préemptée par Thread1
+  t=  42 : Thread1 élue (rang de priorité 1)
+  t=  44 : fin de Thread1 (temps de réponse 2)
+  t=  44 : activation de Thread2 (échéance absolue 55)
+  t=  44 : Thread2 élue (rang de priorité 2)
+  t=  47 : fin de Thread2 (temps de réponse 3)
+  t=  47 : Thread3 élue (rang de priorité 3)
+  t=  49 : fin de Thread3 (temps de réponse 10)
+  t=  49 : activation de Thread1 (échéance absolue 56)
+  t=  49 : Thread1 élue (rang de priorité 1)
+  t=  51 : fin de Thread1 (temps de réponse 2)
+  t=  51 : processeur oisif
+  t=  52 : activation de Thread3 (échéance absolue 65)
+  t=  52 : Thread3 élue (rang de priorité 3)
+  t=  55 : activation de Thread2 (échéance absolue 66)
+  t=  55 : Thread3 préemptée par Thread2
+  t=  55 : Thread2 élue (rang de priorité 2)
+  t=  56 : activation de Thread1 (échéance absolue 63)
+  t=  56 : Thread2 préemptée par Thread1
+  t=  56 : Thread1 élue (rang de priorité 1)
+  t=  58 : fin de Thread1 (temps de réponse 2)
+  t=  58 : Thread2 élue (rang de priorité 2)
+
+Chronogramme (t = 0 .. 60) :
+t          0    5    10   15   20   25   30   35   40   45   50   55      
+Thread1    ##.....##.....##.....##.....##.....##.....##.....##.....##..
+Thread2    --###......###........-###.......##--#......###........#--##
+Thread3    -----##--##-----#####-----##--###-----####-----##...###-----
+Depasse                 X            X                                 
+Légende : # exécution   - prête mais en attente   . inactive   X échéance ratée à cet instant
+
+Pire temps de réponse observé : Thread1=2 Thread2=5 Thread3=17
+Préemptions : 125
+=> Simulation HPF préemptive : 9 échéance(s) ratée(s), la 1re à t=13 (Thread3) => NON FAISABLE
+Contrôle : temps de réponse simulés == temps de réponse calculés (tâches qui respectent leur échéance).
+
+==================== RM ====================
+(Rate Monotonic : plus petite période = plus prioritaire)
+
+Ordre de priorité : Thread1 > Thread2 > Thread3
+
+-- Étape 1 : charge processeur --
+U = 2/7 + 3/11 + 5/13 = 0.943
+U_RM = 0.780 < U <= 1 : la charge ne permet pas de conclure.
+
+-- Étape 2 : temps de réponse (condition nécessaire et suffisante) --
+  Thread1 :
+    r(0) = 2
+    r(1) = 2
+  Thread2 :
+    r(0) = 3
+    r(1) = 5
+    r(2) = 5
+  Thread3 :
+    r(0) = 5
+    r(1) = 10
+    r(2) = 12
+    r(3) = 15
+    r(4) = 17
+    r(5) = 17
++------------+------+------+------+------+------+----------+
+| Tache      |    C |    D |    T | Prio |    R | R <= D ? |
++------------+------+------+------+------+------+----------+
+| Thread1    |    2 |    7 |    7 |   20 |    2 | oui      |
+| Thread2    |    3 |   11 |   11 |   15 |    5 | oui      |
+| Thread3    |    5 |   13 |   13 |   10 |   17 | NON      |
++------------+------+------+------+------+------+----------+
+
+=> Analyse théorique RM (préemptif) : NON FAISABLE
+
+--- Simulation RM préemptive sur [0, 1001[ ---
+Journal des événements (jusqu'à t = 60) :
+  t=   0 : activation de Thread1 (échéance absolue 7)
+  t=   0 : activation de Thread2 (échéance absolue 11)
+  t=   0 : activation de Thread3 (échéance absolue 13)
+  t=   0 : Thread1 élue (rang de priorité 1)
+  t=   2 : fin de Thread1 (temps de réponse 2)
+  t=   2 : Thread2 élue (rang de priorité 2)
+  t=   5 : fin de Thread2 (temps de réponse 5)
+  t=   5 : Thread3 élue (rang de priorité 3)
+  t=   7 : activation de Thread1 (échéance absolue 14)
+  t=   7 : Thread3 préemptée par Thread1
+  t=   7 : Thread1 élue (rang de priorité 1)
+  t=   9 : fin de Thread1 (temps de réponse 2)
+  t=   9 : Thread3 élue (rang de priorité 3)
+  t=  11 : activation de Thread2 (échéance absolue 22)
+  t=  11 : Thread3 préemptée par Thread2
+  t=  11 : Thread2 élue (rang de priorité 2)
+  t=  13 : *** ÉCHÉANCE RATÉE *** Thread3 (activée à 0, il reste 1 unité(s))
+  t=  13 : activation de Thread3 (échéance absolue 26)
+  t=  14 : fin de Thread2 (temps de réponse 3)
+  t=  14 : activation de Thread1 (échéance absolue 21)
+  t=  14 : Thread1 élue (rang de priorité 1)
+  t=  16 : fin de Thread1 (temps de réponse 2)
+  t=  16 : Thread3 élue (rang de priorité 3)
+  t=  17 : fin de Thread3 (temps de réponse 17, EN RETARD)
+  t=  17 : Thread3 élue (rang de priorité 3)
+  t=  21 : activation de Thread1 (échéance absolue 28)
+  t=  21 : Thread3 préemptée par Thread1
+  t=  21 : Thread1 élue (rang de priorité 1)
+  t=  22 : activation de Thread2 (échéance absolue 33)
+  t=  23 : fin de Thread1 (temps de réponse 2)
+  t=  23 : Thread2 élue (rang de priorité 2)
+  t=  26 : fin de Thread2 (temps de réponse 4)
+  t=  26 : *** ÉCHÉANCE RATÉE *** Thread3 (activée à 13, il reste 1 unité(s))
+  t=  26 : activation de Thread3 (échéance absolue 39)
+  t=  26 : Thread3 élue (rang de priorité 3)
+  t=  27 : fin de Thread3 (temps de réponse 14, EN RETARD)
+  t=  27 : Thread3 élue (rang de priorité 3)
+  t=  28 : activation de Thread1 (échéance absolue 35)
+  t=  28 : Thread3 préemptée par Thread1
+  t=  28 : Thread1 élue (rang de priorité 1)
+  t=  30 : fin de Thread1 (temps de réponse 2)
+  t=  30 : Thread3 élue (rang de priorité 3)
+  t=  33 : activation de Thread2 (échéance absolue 44)
+  t=  33 : Thread3 préemptée par Thread2
+  t=  33 : Thread2 élue (rang de priorité 2)
+  t=  35 : activation de Thread1 (échéance absolue 42)
+  t=  35 : Thread2 préemptée par Thread1
+  t=  35 : Thread1 élue (rang de priorité 1)
+  t=  37 : fin de Thread1 (temps de réponse 2)
+  t=  37 : Thread2 élue (rang de priorité 2)
+  t=  38 : fin de Thread2 (temps de réponse 5)
+  t=  38 : Thread3 élue (rang de priorité 3)
+  t=  39 : fin de Thread3 (temps de réponse 13)
+  t=  39 : activation de Thread3 (échéance absolue 52)
+  t=  39 : Thread3 élue (rang de priorité 3)
+  t=  42 : activation de Thread1 (échéance absolue 49)
+  t=  42 : Thread3 préemptée par Thread1
+  t=  42 : Thread1 élue (rang de priorité 1)
+  t=  44 : fin de Thread1 (temps de réponse 2)
+  t=  44 : activation de Thread2 (échéance absolue 55)
+  t=  44 : Thread2 élue (rang de priorité 2)
+  t=  47 : fin de Thread2 (temps de réponse 3)
+  t=  47 : Thread3 élue (rang de priorité 3)
+  t=  49 : fin de Thread3 (temps de réponse 10)
+  t=  49 : activation de Thread1 (échéance absolue 56)
+  t=  49 : Thread1 élue (rang de priorité 1)
+  t=  51 : fin de Thread1 (temps de réponse 2)
+  t=  51 : processeur oisif
+  t=  52 : activation de Thread3 (échéance absolue 65)
+  t=  52 : Thread3 élue (rang de priorité 3)
+  t=  55 : activation de Thread2 (échéance absolue 66)
+  t=  55 : Thread3 préemptée par Thread2
+  t=  55 : Thread2 élue (rang de priorité 2)
+  t=  56 : activation de Thread1 (échéance absolue 63)
+  t=  56 : Thread2 préemptée par Thread1
+  t=  56 : Thread1 élue (rang de priorité 1)
+  t=  58 : fin de Thread1 (temps de réponse 2)
+  t=  58 : Thread2 élue (rang de priorité 2)
+
+Chronogramme (t = 0 .. 60) :
+t          0    5    10   15   20   25   30   35   40   45   50   55      
+Thread1    ##.....##.....##.....##.....##.....##.....##.....##.....##..
+Thread2    --###......###........-###.......##--#......###........#--##
+Thread3    -----##--##-----#####-----##--###-----####-----##...###-----
+Depasse                 X            X                                 
+Légende : # exécution   - prête mais en attente   . inactive   X échéance ratée à cet instant
+
+Pire temps de réponse observé : Thread1=2 Thread2=5 Thread3=17
+Préemptions : 125
+=> Simulation RM préemptive : 9 échéance(s) ratée(s), la 1re à t=13 (Thread3) => NON FAISABLE
+Contrôle : temps de réponse simulés == temps de réponse calculés (tâches qui respectent leur échéance).
+
+==================== DM ====================
+(Deadline Monotonic : plus petite échéance relative = plus prioritaire)
+
+Ordre de priorité : Thread1 > Thread2 > Thread3
+
+-- Étape 1 : charge processeur --
+U = 2/7 + 3/11 + 5/13 = 0.943
+U <= 1 : condition nécessaire respectée. (La borne de Liu & Layland 0.780
+ne s'applique qu'à RM avec D = T : elle n'est pas utilisée ici.)
+
+-- Étape 2 : temps de réponse (condition nécessaire et suffisante) --
+  Thread1 :
+    r(0) = 2
+    r(1) = 2
+  Thread2 :
+    r(0) = 3
+    r(1) = 5
+    r(2) = 5
+  Thread3 :
+    r(0) = 5
+    r(1) = 10
+    r(2) = 12
+    r(3) = 15
+    r(4) = 17
+    r(5) = 17
++------------+------+------+------+------+------+----------+
+| Tache      |    C |    D |    T | Prio |    R | R <= D ? |
++------------+------+------+------+------+------+----------+
+| Thread1    |    2 |    7 |    7 |   20 |    2 | oui      |
+| Thread2    |    3 |   11 |   11 |   15 |    5 | oui      |
+| Thread3    |    5 |   13 |   13 |   10 |   17 | NON      |
++------------+------+------+------+------+------+----------+
+
+=> Analyse théorique DM (préemptif) : NON FAISABLE
+
+--- Simulation DM préemptive sur [0, 1001[ ---
+Journal des événements (jusqu'à t = 60) :
+  t=   0 : activation de Thread1 (échéance absolue 7)
+  t=   0 : activation de Thread2 (échéance absolue 11)
+  t=   0 : activation de Thread3 (échéance absolue 13)
+  t=   0 : Thread1 élue (rang de priorité 1)
+  t=   2 : fin de Thread1 (temps de réponse 2)
+  t=   2 : Thread2 élue (rang de priorité 2)
+  t=   5 : fin de Thread2 (temps de réponse 5)
+  t=   5 : Thread3 élue (rang de priorité 3)
+  t=   7 : activation de Thread1 (échéance absolue 14)
+  t=   7 : Thread3 préemptée par Thread1
+  t=   7 : Thread1 élue (rang de priorité 1)
+  t=   9 : fin de Thread1 (temps de réponse 2)
+  t=   9 : Thread3 élue (rang de priorité 3)
+  t=  11 : activation de Thread2 (échéance absolue 22)
+  t=  11 : Thread3 préemptée par Thread2
+  t=  11 : Thread2 élue (rang de priorité 2)
+  t=  13 : *** ÉCHÉANCE RATÉE *** Thread3 (activée à 0, il reste 1 unité(s))
+  t=  13 : activation de Thread3 (échéance absolue 26)
+  t=  14 : fin de Thread2 (temps de réponse 3)
+  t=  14 : activation de Thread1 (échéance absolue 21)
+  t=  14 : Thread1 élue (rang de priorité 1)
+  t=  16 : fin de Thread1 (temps de réponse 2)
+  t=  16 : Thread3 élue (rang de priorité 3)
+  t=  17 : fin de Thread3 (temps de réponse 17, EN RETARD)
+  t=  17 : Thread3 élue (rang de priorité 3)
+  t=  21 : activation de Thread1 (échéance absolue 28)
+  t=  21 : Thread3 préemptée par Thread1
+  t=  21 : Thread1 élue (rang de priorité 1)
+  t=  22 : activation de Thread2 (échéance absolue 33)
+  t=  23 : fin de Thread1 (temps de réponse 2)
+  t=  23 : Thread2 élue (rang de priorité 2)
+  t=  26 : fin de Thread2 (temps de réponse 4)
+  t=  26 : *** ÉCHÉANCE RATÉE *** Thread3 (activée à 13, il reste 1 unité(s))
+  t=  26 : activation de Thread3 (échéance absolue 39)
+  t=  26 : Thread3 élue (rang de priorité 3)
+  t=  27 : fin de Thread3 (temps de réponse 14, EN RETARD)
+  t=  27 : Thread3 élue (rang de priorité 3)
+  t=  28 : activation de Thread1 (échéance absolue 35)
+  t=  28 : Thread3 préemptée par Thread1
+  t=  28 : Thread1 élue (rang de priorité 1)
+  t=  30 : fin de Thread1 (temps de réponse 2)
+  t=  30 : Thread3 élue (rang de priorité 3)
+  t=  33 : activation de Thread2 (échéance absolue 44)
+  t=  33 : Thread3 préemptée par Thread2
+  t=  33 : Thread2 élue (rang de priorité 2)
+  t=  35 : activation de Thread1 (échéance absolue 42)
+  t=  35 : Thread2 préemptée par Thread1
+  t=  35 : Thread1 élue (rang de priorité 1)
+  t=  37 : fin de Thread1 (temps de réponse 2)
+  t=  37 : Thread2 élue (rang de priorité 2)
+  t=  38 : fin de Thread2 (temps de réponse 5)
+  t=  38 : Thread3 élue (rang de priorité 3)
+  t=  39 : fin de Thread3 (temps de réponse 13)
+  t=  39 : activation de Thread3 (échéance absolue 52)
+  t=  39 : Thread3 élue (rang de priorité 3)
+  t=  42 : activation de Thread1 (échéance absolue 49)
+  t=  42 : Thread3 préemptée par Thread1
+  t=  42 : Thread1 élue (rang de priorité 1)
+  t=  44 : fin de Thread1 (temps de réponse 2)
+  t=  44 : activation de Thread2 (échéance absolue 55)
+  t=  44 : Thread2 élue (rang de priorité 2)
+  t=  47 : fin de Thread2 (temps de réponse 3)
+  t=  47 : Thread3 élue (rang de priorité 3)
+  t=  49 : fin de Thread3 (temps de réponse 10)
+  t=  49 : activation de Thread1 (échéance absolue 56)
+  t=  49 : Thread1 élue (rang de priorité 1)
+  t=  51 : fin de Thread1 (temps de réponse 2)
+  t=  51 : processeur oisif
+  t=  52 : activation de Thread3 (échéance absolue 65)
+  t=  52 : Thread3 élue (rang de priorité 3)
+  t=  55 : activation de Thread2 (échéance absolue 66)
+  t=  55 : Thread3 préemptée par Thread2
+  t=  55 : Thread2 élue (rang de priorité 2)
+  t=  56 : activation de Thread1 (échéance absolue 63)
+  t=  56 : Thread2 préemptée par Thread1
+  t=  56 : Thread1 élue (rang de priorité 1)
+  t=  58 : fin de Thread1 (temps de réponse 2)
+  t=  58 : Thread2 élue (rang de priorité 2)
+
+Chronogramme (t = 0 .. 60) :
+t          0    5    10   15   20   25   30   35   40   45   50   55      
+Thread1    ##.....##.....##.....##.....##.....##.....##.....##.....##..
+Thread2    --###......###........-###.......##--#......###........#--##
+Thread3    -----##--##-----#####-----##--###-----####-----##...###-----
+Depasse                 X            X                                 
+Légende : # exécution   - prête mais en attente   . inactive   X échéance ratée à cet instant
+
+Pire temps de réponse observé : Thread1=2 Thread2=5 Thread3=17
+Préemptions : 125
+=> Simulation DM préemptive : 9 échéance(s) ratée(s), la 1re à t=13 (Thread3) => NON FAISABLE
+Contrôle : temps de réponse simulés == temps de réponse calculés (tâches qui respectent leur échéance).
+
+==================== EDF ====================
+(Earliest Deadline First : plus proche échéance absolue = plus prioritaire)
+
+-- Étape 1 : charge processeur --
+U = 2/7 + 3/11 + 5/13 = 0.943
+
+-- Période d'étude (busy period) : t = W(t) --
+    W(1) = 10
+    W(10) = 12
+    W(12) = 15
+    W(15) = 22
+    W(22) = 24
+    W(24) = 27
+    W(27) = 32
+    W(32) = 34
+    W(34) = 37
+    W(37) = 39
+    W(39) = 39
+Période active = 39
+
+D = T pour toutes les tâches : EDF est optimal et la condition
+U <= 1 est nécessaire ET suffisante => FAISABLE.
+
+=> Analyse théorique EDF (préemptif) : FAISABLE
+
+--- Simulation EDF préemptive sur [0, 1001[ ---
+Journal des événements (jusqu'à t = 60) :
+  t=   0 : activation de Thread1 (échéance absolue 7)
+  t=   0 : activation de Thread2 (échéance absolue 11)
+  t=   0 : activation de Thread3 (échéance absolue 13)
+  t=   0 : Thread1 élue (échéance absolue la plus proche : 7)
+  t=   2 : fin de Thread1 (temps de réponse 2)
+  t=   2 : Thread2 élue (échéance absolue la plus proche : 11)
+  t=   5 : fin de Thread2 (temps de réponse 5)
+  t=   5 : Thread3 élue (échéance absolue la plus proche : 13)
+  t=   7 : activation de Thread1 (échéance absolue 14)
+  t=  10 : fin de Thread3 (temps de réponse 10)
+  t=  10 : Thread1 élue (échéance absolue la plus proche : 14)
+  t=  11 : activation de Thread2 (échéance absolue 22)
+  t=  12 : fin de Thread1 (temps de réponse 5)
+  t=  12 : Thread2 élue (échéance absolue la plus proche : 22)
+  t=  13 : activation de Thread3 (échéance absolue 26)
+  t=  14 : activation de Thread1 (échéance absolue 21)
+  t=  14 : Thread2 préemptée par Thread1
+  t=  14 : Thread1 élue (échéance absolue la plus proche : 21)
+  t=  16 : fin de Thread1 (temps de réponse 2)
+  t=  16 : Thread2 élue (échéance absolue la plus proche : 22)
+  t=  17 : fin de Thread2 (temps de réponse 6)
+  t=  17 : Thread3 élue (échéance absolue la plus proche : 26)
+  t=  21 : activation de Thread1 (échéance absolue 28)
+  t=  22 : fin de Thread3 (temps de réponse 9)
+  t=  22 : activation de Thread2 (échéance absolue 33)
+  t=  22 : Thread1 élue (échéance absolue la plus proche : 28)
+  t=  24 : fin de Thread1 (temps de réponse 3)
+  t=  24 : Thread2 élue (échéance absolue la plus proche : 33)
+  t=  26 : activation de Thread3 (échéance absolue 39)
+  t=  27 : fin de Thread2 (temps de réponse 5)
+  t=  27 : Thread3 élue (échéance absolue la plus proche : 39)
+  t=  28 : activation de Thread1 (échéance absolue 35)
+  t=  28 : Thread3 préemptée par Thread1
+  t=  28 : Thread1 élue (échéance absolue la plus proche : 35)
+  t=  30 : fin de Thread1 (temps de réponse 2)
+  t=  30 : Thread3 élue (échéance absolue la plus proche : 39)
+  t=  33 : activation de Thread2 (échéance absolue 44)
+  t=  34 : fin de Thread3 (temps de réponse 8)
+  t=  34 : Thread2 élue (échéance absolue la plus proche : 44)
+  t=  35 : activation de Thread1 (échéance absolue 42)
+  t=  35 : Thread2 préemptée par Thread1
+  t=  35 : Thread1 élue (échéance absolue la plus proche : 42)
+  t=  37 : fin de Thread1 (temps de réponse 2)
+  t=  37 : Thread2 élue (échéance absolue la plus proche : 44)
+  t=  39 : fin de Thread2 (temps de réponse 6)
+  t=  39 : activation de Thread3 (échéance absolue 52)
+  t=  39 : Thread3 élue (échéance absolue la plus proche : 52)
+  t=  42 : activation de Thread1 (échéance absolue 49)
+  t=  42 : Thread3 préemptée par Thread1
+  t=  42 : Thread1 élue (échéance absolue la plus proche : 49)
+  t=  44 : fin de Thread1 (temps de réponse 2)
+  t=  44 : activation de Thread2 (échéance absolue 55)
+  t=  44 : Thread3 élue (échéance absolue la plus proche : 52)
+  t=  46 : fin de Thread3 (temps de réponse 7)
+  t=  46 : Thread2 élue (échéance absolue la plus proche : 55)
+  t=  49 : fin de Thread2 (temps de réponse 5)
+  t=  49 : activation de Thread1 (échéance absolue 56)
+  t=  49 : Thread1 élue (échéance absolue la plus proche : 56)
+  t=  51 : fin de Thread1 (temps de réponse 2)
+  t=  51 : processeur oisif
+  t=  52 : activation de Thread3 (échéance absolue 65)
+  t=  52 : Thread3 élue (échéance absolue la plus proche : 65)
+  t=  55 : activation de Thread2 (échéance absolue 66)
+  t=  56 : activation de Thread1 (échéance absolue 63)
+  t=  56 : Thread3 préemptée par Thread1
+  t=  56 : Thread1 élue (échéance absolue la plus proche : 63)
+  t=  58 : fin de Thread1 (temps de réponse 2)
+  t=  58 : Thread3 élue (échéance absolue la plus proche : 65)
+  t=  59 : fin de Thread3 (temps de réponse 7)
+  t=  59 : Thread2 élue (échéance absolue la plus proche : 66)
+
+Chronogramme (t = 0 .. 60) :
+t          0    5    10   15   20   25   30   35   40   45   50   55      
+Thread1    ##.....---##..##.....-##....##.....##.....##.....##.....##..
+Thread2    --###......-##--#.....--###......-#--##.....--###......----#
+Thread3    -----#####...----#####....-#--####.....###--##......####--#.
+Depasse                                                                
+Légende : # exécution   - prête mais en attente   . inactive   X échéance ratée à cet instant
+
+Pire temps de réponse observé : Thread1=5 Thread2=9 Thread3=10
+Préemptions : 68
+=> Simulation EDF préemptive : aucune échéance ratée sur [0, 1001] => FAISABLE
+
+==================== RÉCAPITULATIF ====================
++-----------+----------------+---------------------+---------------------+
+| Politique | Theorie        | Simu. preemptive    | Simu. non preempt.  |
++-----------+----------------+---------------------+---------------------+
+| HPF       | NON FAISABLE   | NON (t=13, Thread3) | FAISABLE            |
+| RM        | NON FAISABLE   | NON (t=13, Thread3) | FAISABLE            |
+| DM        | NON FAISABLE   | NON (t=13, Thread3) | FAISABLE            |
+| EDF       | FAISABLE       | FAISABLE            | FAISABLE            |
++-----------+----------------+---------------------+---------------------+
+(NON (t=x, tâche) : première échéance ratée à l'instant x)

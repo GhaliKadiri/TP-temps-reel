@@ -1,0 +1,4 @@
+# Le non préemptif peut échouer là où le préemptif réussit :
+# tau2 (longue) bloque tau1 qui est pourtant plus prioritaire.
+tau1    2  2  4  2
+tau2    3  12 12 1

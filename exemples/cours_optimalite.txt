@@ -1,0 +1,5 @@
+# Cours p.136 (optimalité) : D < T.
+# RM rate une échéance (tau1 R=5 > D=4), DM et EDF réussissent.
+# nom   C  D  T  prio
+tau1    2  4  8  1
+tau2    3  6  7  2

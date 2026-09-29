@@ -1,0 +1,88 @@
+2 tâche(s) lue(s) depuis exemples/cours_edf_p134.txt :
++------------+------+------+------+----------+
+| Tache      |    C |    D |    T | Priorité |
++------------+------+------+------+----------+
+| tau1       |    2 |    4 |    4 |        1 |
+| tau2       |    3 |    7 |    7 |        1 |
++------------+------+------+------+----------+
+Hyperpériode (PPCM des périodes) = 28 -> durée de simulation = 28
+Hypothèses : monoprocesseur, tâches indépendantes, toutes activées à t = 0,
+D <= T, priorité HPF : valeur plus grande = plus prioritaire.
+
+==================== EDF ====================
+(Earliest Deadline First : plus proche échéance absolue = plus prioritaire)
+
+-- Étape 1 : charge processeur --
+U = 2/4 + 3/7 = 0.929
+
+-- Période d'étude (busy period) : t = W(t) --
+    W(1) = 5
+    W(5) = 7
+    W(7) = 7
+Période active = 7
+
+D = T pour toutes les tâches : EDF est optimal et la condition
+U <= 1 est nécessaire ET suffisante => FAISABLE.
+
+=> Analyse théorique EDF (préemptif) : FAISABLE
+
+--- Simulation EDF préemptive sur [0, 28[ ---
+Journal des événements (jusqu'à t = 28) :
+  t=   0 : activation de tau1 (échéance absolue 4)
+  t=   0 : activation de tau2 (échéance absolue 7)
+  t=   0 : tau1 élue (échéance absolue la plus proche : 4)
+  t=   2 : fin de tau1 (temps de réponse 2)
+  t=   2 : tau2 élue (échéance absolue la plus proche : 7)
+  t=   4 : activation de tau1 (échéance absolue 8)
+  t=   5 : fin de tau2 (temps de réponse 5)
+  t=   5 : tau1 élue (échéance absolue la plus proche : 8)
+  t=   7 : fin de tau1 (temps de réponse 3)
+  t=   7 : activation de tau2 (échéance absolue 14)
+  t=   7 : tau2 élue (échéance absolue la plus proche : 14)
+  t=   8 : activation de tau1 (échéance absolue 12)
+  t=   8 : tau2 préemptée par tau1
+  t=   8 : tau1 élue (échéance absolue la plus proche : 12)
+  t=  10 : fin de tau1 (temps de réponse 2)
+  t=  10 : tau2 élue (échéance absolue la plus proche : 14)
+  t=  12 : fin de tau2 (temps de réponse 5)
+  t=  12 : activation de tau1 (échéance absolue 16)
+  t=  12 : tau1 élue (échéance absolue la plus proche : 16)
+  t=  14 : fin de tau1 (temps de réponse 2)
+  t=  14 : activation de tau2 (échéance absolue 21)
+  t=  14 : tau2 élue (échéance absolue la plus proche : 21)
+  t=  16 : activation de tau1 (échéance absolue 20)
+  t=  16 : tau2 préemptée par tau1
+  t=  16 : tau1 élue (échéance absolue la plus proche : 20)
+  t=  18 : fin de tau1 (temps de réponse 2)
+  t=  18 : tau2 élue (échéance absolue la plus proche : 21)
+  t=  19 : fin de tau2 (temps de réponse 5)
+  t=  19 : processeur oisif
+  t=  20 : activation de tau1 (échéance absolue 24)
+  t=  20 : tau1 élue (échéance absolue la plus proche : 24)
+  t=  21 : activation de tau2 (échéance absolue 28)
+  t=  22 : fin de tau1 (temps de réponse 2)
+  t=  22 : tau2 élue (échéance absolue la plus proche : 28)
+  t=  24 : activation de tau1 (échéance absolue 28)
+  t=  25 : fin de tau2 (temps de réponse 4)
+  t=  25 : tau1 élue (échéance absolue la plus proche : 28)
+  t=  27 : fin de tau1 (temps de réponse 3)
+  t=  27 : processeur oisif
+
+Chronogramme (t = 0 .. 28) :
+t          0    5    10   15   20   25    
+tau1       ##..-##.##..##..##..##..-##.
+tau2       --###..#--##..##--#..-###...
+Depasse                                
+Légende : # exécution   - prête mais en attente   . inactive   X échéance ratée à cet instant
+
+Pire temps de réponse observé : tau1=3 tau2=5
+Préemptions : 2
+=> Simulation EDF préemptive : aucune échéance ratée sur [0, 28] => FAISABLE
+
+==================== RÉCAPITULATIF ====================
++-----------+----------------+---------------------+---------------------+
+| Politique | Theorie        | Simu. preemptive    | Simu. non preempt.  |
++-----------+----------------+---------------------+---------------------+
+| EDF       | FAISABLE       | FAISABLE            | FAISABLE            |
++-----------+----------------+---------------------+---------------------+
+(NON (t=x, tâche) : première échéance ratée à l'instant x)
