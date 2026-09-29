@@ -12,6 +12,7 @@ typedef struct {
     int  D;     /* échéance relative                       */
     int  T;     /* période                                 */
     int  prio;  /* importance (HPF) : plus grand = plus prioritaire */
+    int  id;    /* rang dans le fichier, départage les égalités de priorité */
 } Tache;
 
 /* Un ensemble de n tâches quelconque (Exercice 1, question 2). */

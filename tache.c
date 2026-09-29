@@ -46,6 +46,7 @@ int lire_taches(const char *chemin, Ensemble *e)
             fclose(f);
             return -1;
         }
+        t->id = e->n;
         e->n++;
     }
 

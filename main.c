@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "tache.h"
+#include "analyse.h"
 
 int main(int argc, char *argv[])
 {
@@ -14,5 +15,7 @@ int main(int argc, char *argv[])
 
     printf("%d tâche(s) lue(s) depuis %s :\n", e.n, argv[1]);
     afficher_taches(&e);
+
+    analyser(&e, HPF);
     return 0;
 }

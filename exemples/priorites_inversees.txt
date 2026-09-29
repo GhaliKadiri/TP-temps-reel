@@ -1,0 +1,5 @@
+# Mêmes tâches que l'énoncé, mais importance inversée :
+# HPF fait passer Thread3 (C=5) en premier -> Thread1 rate son échéance
+Thread1  2  7  7  10
+Thread2  3  11 11 15
+Thread3  5  13 13 20
