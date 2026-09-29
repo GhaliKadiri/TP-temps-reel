@@ -19,8 +19,8 @@ Ordre de priorité : tau1 > tau2
 U = 2/4 + 3/12 = 0.750
 U <= 1 : condition nécessaire respectée.
 Borne de Liu & Layland : U_RM = 2(2^(1/2) - 1) = 0.8284
-U <= U_RM, mais cette condition suffisante n'est démontrée que pour
-RM avec D = T : on ne peut pas conclure pour HPF.
+U <= U_RM, mais la borne n'est démontrée que pour RM avec D = T
+(ici, certaines tâches ont D < T) : on ne peut pas conclure par la charge.
 
 -- Étape 2 : temps de réponse (condition nécessaire et suffisante) --
 +------------+------+------+------+------+------+----------+
@@ -54,8 +54,8 @@ Ordre de priorité : tau1 > tau2
 U = 2/4 + 3/12 = 0.750
 U <= 1 : condition nécessaire respectée.
 Borne de Liu & Layland : U_RM = 2(2^(1/2) - 1) = 0.8284
-U <= U_RM, mais cette condition suffisante n'est démontrée que pour
-RM avec D = T : on ne peut pas conclure pour RM.
+U <= U_RM, mais la borne n'est démontrée que pour RM avec D = T
+(ici, certaines tâches ont D < T) : on ne peut pas conclure par la charge.
 
 -- Étape 2 : temps de réponse (condition nécessaire et suffisante) --
 +------------+------+------+------+------+------+----------+
@@ -89,8 +89,8 @@ Ordre de priorité : tau1 > tau2
 U = 2/4 + 3/12 = 0.750
 U <= 1 : condition nécessaire respectée.
 Borne de Liu & Layland : U_RM = 2(2^(1/2) - 1) = 0.8284
-U <= U_RM, mais cette condition suffisante n'est démontrée que pour
-RM avec D = T : on ne peut pas conclure pour DM.
+U <= U_RM, mais la borne n'est démontrée que pour RM avec D = T
+(ici, certaines tâches ont D < T) : on ne peut pas conclure par la charge.
 
 -- Étape 2 : temps de réponse (condition nécessaire et suffisante) --
 +------------+------+------+------+------+------+----------+
@@ -122,12 +122,31 @@ Préemptions : 0
 U = 2/4 + 3/12 = 0.750
 
 -- Période d'étude (busy period) : t = W(t) --
-Période active = 7
+Période active L = 7
+
+-- Pire temps de réponse : méthode de Spuri (cours p.133) --
+Pour chaque tâche i et chaque instant a de A_i = { k.Tj + Dj - Di >= 0 } dans
+[0, L[ : scénario où les autres tâches sont activées à t = 0 et la tâche i à a
+(ses jobs précédents à a - Ti, a - 2Ti... >= 0). r_i(a) = temps de réponse du
+job activé à a, puis R_i = max r_i(a).
+  tau1       a=0:r=2 a=4:r=2
+             -> R = 2 (a = 0)
+  tau2       a=0:r=7 a=2:r=5 a=6:r=5
+             -> R = 7 (a = 0)
++------------+------+------+------+------+----------+
+| Tache      |    C |    D |    T |    R | R <= D ? |
++------------+------+------+------+------+----------+
+| tau1       |    2 |    2 |    4 |    2 | oui      |
+| tau2       |    3 |   12 |   12 |    7 | oui      |
++------------+------+------+------+------+----------+
+(À échéance égale, la tâche étudiée passe ici en dernier : c'est le cas le
+plus défavorable, R est donc valable quelle que soit la règle d'égalité. La
+simulation, où la tâche en cours garde le processeur, peut observer moins.)
 
 Il existe des tâches avec D < T : U <= 1 n'est que nécessaire.
-=> On ne peut pas conclure par la charge, la simulation tranche.
+=> La méthode de Spuri tranche : R <= D pour toutes les tâches.
 
-=> Analyse théorique EDF (préemptif) : INDÉCIS (voir simulation)
+=> Analyse théorique EDF (préemptif) : FAISABLE
 
 --- Simulation EDF non préemptive sur [0, 12[ ---
 
@@ -142,9 +161,12 @@ Pire temps de réponse observé : tau1=3 tau2=5
 Préemptions : 0
 => Simulation EDF non préemptive : 1 échéance(s) ratée(s), la 1re à t=6 (tau1) => NON FAISABLE
 
-Temps de réponse de chaque activation a dans la période active [0, 7[ :
+Déroulement synchrone (simulation EDF préemptive) : temps de réponse
+des activations dans [0, 7[ (1re période active) :
   tau1       a=0:r=2 a=4:r=2  -> max = 2
   tau2       a=0:r=7  -> max = 7
+Contrôle Spuri : R (Spuri) == pire temps de réponse observé sur
+l'hyperpériode.
 
 ==================== RÉCAPITULATIF ====================
 +-----------+----------------+---------------------+---------------------+
@@ -153,6 +175,6 @@ Temps de réponse de chaque activation a dans la période active [0, 7[ :
 | HPF       | FAISABLE       | FAISABLE            | NON (t=6, tau1)     |
 | RM        | FAISABLE       | FAISABLE            | NON (t=6, tau1)     |
 | DM        | FAISABLE       | FAISABLE            | NON (t=6, tau1)     |
-| EDF       | indecis        | FAISABLE            | NON (t=6, tau1)     |
+| EDF       | FAISABLE       | FAISABLE            | NON (t=6, tau1)     |
 +-----------+----------------+---------------------+---------------------+
 (NON (t=x, tâche) : première échéance ratée à l'instant x)

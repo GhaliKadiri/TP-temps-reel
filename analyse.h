@@ -43,7 +43,9 @@ long periode_active(const Ensemble *e, int trace);
 long temps_reponse(const Ensemble *e, int i, int trace);
 
 /* Analyse théorique (préemptive) d'une politique.
- * R[id] reçoit le temps de réponse calculé de chaque tâche (priorités fixes).
+ * R[id] reçoit le pire temps de réponse calculé de chaque tâche : formule
+ * itérative pour les priorités fixes, méthode de Spuri pour EDF
+ * (R_INFINI si non calculé).
  * Retourne 1 = faisable, 0 = non faisable, -1 = la théorie ne permet pas de
  * conclure (c'est alors la simulation qui tranche). */
 int analyser(const Ensemble *e, Politique p, long R[], int trace);

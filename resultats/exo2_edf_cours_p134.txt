@@ -20,7 +20,26 @@ U = 2/4 + 3/7 = 0.929
     W(1) = 5
     W(5) = 7
     W(7) = 7
-Période active = 7
+Période active L = 7
+
+-- Pire temps de réponse : méthode de Spuri (cours p.133) --
+Pour chaque tâche i et chaque instant a de A_i = { k.Tj + Dj - Di >= 0 } dans
+[0, L[ : scénario où les autres tâches sont activées à t = 0 et la tâche i à a
+(ses jobs précédents à a - Ti, a - 2Ti... >= 0). r_i(a) = temps de réponse du
+job activé à a, puis R_i = max r_i(a).
+  tau1       a=0:r=2 a=3:r=2 a=4:r=3
+             -> R = 3 (a = 4)
+  tau2       a=0:r=5 a=1:r=6 a=5:r=6
+             -> R = 6 (a = 1)
++------------+------+------+------+------+----------+
+| Tache      |    C |    D |    T |    R | R <= D ? |
++------------+------+------+------+------+----------+
+| tau1       |    2 |    4 |    4 |    3 | oui      |
+| tau2       |    3 |    7 |    7 |    6 | oui      |
++------------+------+------+------+------+----------+
+(À échéance égale, la tâche étudiée passe ici en dernier : c'est le cas le
+plus défavorable, R est donc valable quelle que soit la règle d'égalité. La
+simulation, où la tâche en cours garde le processeur, peut observer moins.)
 
 D = T pour toutes les tâches : EDF est optimal et la condition
 U <= 1 est nécessaire ET suffisante => FAISABLE.
@@ -99,9 +118,14 @@ Pire temps de réponse observé : tau1=3 tau2=5
 Préemptions : 2
 => Simulation EDF préemptive : aucune échéance ratée sur [0, 28] => FAISABLE
 
-Temps de réponse de chaque activation a dans la période active [0, 7[ :
+Déroulement synchrone (simulation EDF préemptive) : temps de réponse
+des activations dans [0, 7[ (1re période active) :
   tau1       a=0:r=2 a=4:r=3  -> max = 3
   tau2       a=0:r=5  -> max = 5
+Contrôle Spuri : R (Spuri) >= pire temps de réponse observé sur
+l'hyperpériode
+(Spuri couvre des scénarios décalés et tranche les égalités d'échéance
+au pire : il peut majorer strictement le déroulement synchrone).
 
 ==================== RÉCAPITULATIF ====================
 +-----------+----------------+---------------------+---------------------+

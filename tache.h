@@ -3,6 +3,7 @@
 
 #define NOM_MAX    11   /* 10 caractères + fin de chaîne (largeur des tableaux) */
 #define TACHES_MAX 64
+#define VALEUR_MAX 1000000L   /* plus grande valeur acceptée pour C, D et T */
 
 /* Une tâche périodique temps réel (modèle du cours : C, D, T, P).
  * Toutes les valeurs sont des entiers (unités de temps, ici la seconde). */
@@ -12,6 +13,8 @@ typedef struct {
     int  D;     /* échéance relative                       */
     int  T;     /* période                                 */
     int  prio;  /* importance (HPF) : plus grand = plus prioritaire */
+    long S;     /* date de 1re activation (cours p.93). Vaut 0 pour les tâches
+                 * lues ; seule la méthode de Spuri (EDF) la décale. */
     int  id;    /* rang dans le fichier, départage les égalités de priorité */
 } Tache;
 

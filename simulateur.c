@@ -34,14 +34,17 @@ static void retirer_tete(FileJobs *f)
 /* La tâche a doit-elle passer avant la tâche b ? (indices de tâches)
  * Priorités fixes : le rang est strict (les égalités de priorité ont déjà
  * été départagées par l'ordre du fichier lors du tri).
- * EDF : à échéance égale, la tâche en cours garde le processeur (pas de
+ * EDF : à échéance égale, la tâche 'defavorisee' (méthode de Spuri, -1 sinon)
+ * passe en dernier ; sinon la tâche en cours garde le processeur (pas de
  * préemption inutile), sinon on suit l'ordre du fichier. */
-static int plus_prioritaire(int a, int b, int courant, Politique p,
+static int plus_prioritaire(int a, int b, int courant, int defavorisee, Politique p,
                             const int rang[], FileJobs files[])
 {
     if (p == EDF) {
         long ea = tete(&files[a])->echeance, eb = tete(&files[b])->echeance;
         if (ea != eb) return ea < eb;          /* échéance absolue la plus proche */
+        if (a == defavorisee) return 0;
+        if (b == defavorisee) return 1;
     } else {
         if (rang[a] != rang[b]) return rang[a] < rang[b];   /* priorité fixe */
     }
@@ -52,12 +55,13 @@ static int plus_prioritaire(int a, int b, int courant, Politique p,
 
 /* Parcourt la file d'attente et retourne la tâche la plus prioritaire
  * parmi celles qui ont un job prêt (-1 si aucune : processeur oisif). */
-static int elire(int n, int courant, Politique p, const int rang[], FileJobs files[])
+static int elire(int n, int courant, int defavorisee, Politique p, const int rang[],
+                 FileJobs files[])
 {
     int elu = -1;
     for (int i = 0; i < n; i++) {
         if (files[i].nb == 0) continue;
-        if (elu == -1 || plus_prioritaire(i, elu, courant, p, rang, files))
+        if (elu == -1 || plus_prioritaire(i, elu, courant, defavorisee, p, rang, files))
             elu = i;
     }
     return elu;
@@ -116,7 +120,7 @@ static void noter_echec(ResultatSim *res, long t, int tache)
 }
 
 int simuler(const Ensemble *e, Politique p, int preemptif, long duree, int duree_complete,
-            int affichage, int journal, ResultatSim *res)
+            int affichage, int journal, ResultatSim *res, JobSuivi *suivi)
 {
     int n = e->n;
     static FileJobs files[TACHES_MAX];
@@ -140,6 +144,7 @@ int simuler(const Ensemble *e, Politique p, int preemptif, long duree, int duree
     res->premier_echec = -1;
     res->tache_premier_echec = -1;
     for (int i = 0; i < n; i++) res->R_max[i] = -1;
+    if (suivi != NULL) suivi->fin = -1;
 
     if (affichage > 0)
         printf("\n--- Simulation %s %s sur [0, %ld[ ---\n", nom_politique(p),
@@ -168,11 +173,12 @@ int simuler(const Ensemble *e, Politique p, int preemptif, long duree, int duree
         }
         if (t == duree) break;   /* dernier instant : uniquement le contrôle des échéances */
 
-        /* 2) Activations périodiques (toutes les tâches démarrent à t = 0 :
-         *    instant critique, c'est le pire cas pour les priorités fixes). */
+        /* 2) Activations périodiques à S, S + T, S + 2T... Pour les tâches lues,
+         *    S = 0 : toutes démarrent ensemble (instant critique, c'est le pire
+         *    cas pour les priorités fixes). */
         int evenement = 0;
         for (int i = 0; i < n; i++) {
-            if (t % e->t[i].T != 0) continue;
+            if (t < e->t[i].S || (t - e->t[i].S) % e->t[i].T != 0) continue;
             evenement = 1;
             if (files[i].nb == FILE_MAX) {
                 /* surcharge : le job ne sera jamais exécuté, il compte comme un échec */
@@ -196,7 +202,7 @@ int simuler(const Ensemble *e, Politique p, int preemptif, long duree, int duree
          *    - processeur libre (fin d'un job) : toujours
          *    - nouvelle activation : seulement en mode préemptif */
         if (courant == -1 || (preemptif && evenement)) {
-            int elu = elire(n, courant, p, rang, files);
+            int elu = elire(n, courant, suivi != NULL ? suivi->tache : -1, p, rang, files);
             if (log && elu != -1) {
                 afficher_file(t, e, p, rang, files);
                 const char *raison = p == EDF ? "échéance absolue la plus proche"
@@ -248,8 +254,14 @@ int simuler(const Ensemble *e, Politique p, int preemptif, long duree, int duree
             if (journal && fin < affichage)
                 printf("  t=%4ld : fin de %s (temps de réponse %ld%s)\n", fin,
                        e->t[courant].nom, r, jb->en_retard ? ", EN RETARD" : "");
+            int fin_suivi = suivi != NULL && courant == suivi->tache
+                            && jb->activation == suivi->activation;
             retirer_tete(&files[courant]);
             courant = -1;   /* fin de job = événement d'ordonnancement */
+            if (fin_suivi) {            /* job surveillé terminé : inutile d'aller plus loin */
+                suivi->fin = fin;
+                break;
+            }
         }
     }
 
@@ -271,7 +283,7 @@ int simuler(const Ensemble *e, Politique p, int preemptif, long duree, int duree
                    nom_politique(p), preemptif ? "préemptive" : "non préemptive", duree);
         else if (res->echecs == 0)
             printf("=> Simulation %s %s : aucune échéance ratée sur [0, %ld], mais cette durée\n"
-                   "   ne couvre pas l'hyperpériode => NON CONCLUANT\n",
+                   "   est trop courte pour conclure => NON CONCLUANT\n",
                    nom_politique(p), preemptif ? "préemptive" : "non préemptive", duree);
         else
             printf("=> Simulation %s %s : %d échéance(s) ratée(s), la 1re à t=%ld (%s) => NON FAISABLE\n",

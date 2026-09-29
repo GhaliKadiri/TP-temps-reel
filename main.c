@@ -54,33 +54,63 @@ static void verdict_sim(char *buf, size_t taille, const Ensemble *e, const Resul
                  e->t[r->tache_premier_echec].nom);
 }
 
-/* EDF (cours p.125-134) : la priorité change d'une activation à l'autre, le
- * pire temps de réponse n'est donc pas forcément obtenu à la 1re activation.
- * On liste le temps de réponse de chaque activation de la période active
- * (ensemble A du cours p.133), puis le pire cas sur toute la simulation. */
-static void temps_reponse_par_activation(const Ensemble *e, const ResultatSim *r)
+/* Durée de simulation qui suffit pour conclure à la faisabilité (tâches
+ * activées ensemble à t = 0, D <= T) ; -1 si aucune durée ne suffit :
+ *   - priorités fixes, préemptif : instant critique (Liu & Layland), le 1er job
+ *     de chaque tâche a le pire temps de réponse -> il suffit d'aller jusqu'à max D ;
+ *   - EDF préemptif : si une échéance est ratée, la première l'est dans la 1re
+ *     période active L (Baruah, Rosier & Howell 1990 ; Spuri 1996) -> L ;
+ *   - non préemptif : pas de résultat aussi simple, on garde l'hyperpériode H
+ *     (si tout est fini à H, le déroulement se répète à l'identique). */
+static long duree_necessaire(const Ensemble *e, Politique p, int preemptif, long H, int plafonne)
 {
-    long bp = periode_active(e, 0);
-    if (bp == R_INFINI) return;
+    if (preemptif && est_priorite_fixe(p)) {
+        long dmax = 0;
+        for (int i = 0; i < e->n; i++)
+            if (e->t[i].D > dmax) dmax = e->t[i].D;
+        return dmax;
+    }
+    if (preemptif && p == EDF) {
+        long L = periode_active(e, 0);   /* R_INFINI (-1) si U > 1 */
+        if (L != R_INFINI) return L;
+    }
+    return plafonne ? -1 : H;
+}
 
-    printf("\nTemps de réponse de chaque activation a dans la période active [0, %ld[ :\n", bp);
+/* EDF : temps de réponse des activations du déroulement synchrone (celui de
+ * la simulation préemptive) situées dans [0, min(L, durée)[. Ce n'est PAS
+ * l'ensemble A de Spuri (voir analyse.c) : le pire cas peut apparaître plus
+ * tard dans ce déroulement, dans une configuration décalée. */
+static void reponses_deroulement_synchrone(const Ensemble *e, const ResultatSim *r, long duree)
+{
+    long L = periode_active(e, 0);
+    if (L == R_INFINI) return;
+    long borne = L < duree ? L : duree;
+
+    printf("\nDéroulement synchrone (simulation EDF préemptive) : temps de réponse\n"
+           "des activations dans [0, %ld[%s :\n", borne,
+           borne == L ? " (1re période active)" : "");
+    int incomplet = 0;
     for (int i = 0; i < e->n; i++) {
-        long max_bp = -1;
+        long max_bp = -1, nb = 0;
         printf("  %-10s", e->t[i].nom);
         for (int k = 0; k < r->nb_jobs; k++) {
             const JobFini *j = &r->jobs[k];
-            if (j->tache != i || j->activation >= bp) continue;
+            if (j->tache != i || j->activation >= borne) continue;
             long rep = j->fin - j->activation;
             printf(" a=%ld:r=%ld", j->activation, rep);
             if (rep > max_bp) max_bp = rep;
+            nb++;
         }
+        /* activations attendues dans [0, borne[ : 0, T, 2T... */
+        if (nb < (borne + e->t[i].T - 1) / e->t[i].T) incomplet = 1;
         printf("  -> max = %ld", max_bp);
         if (r->R_max[i] > max_bp)
-            printf("  (pire cas plus tard : r=%ld pour a=%ld)", r->R_max[i], r->R_max_act[i]);
+            printf("  (plus tard : r=%ld pour a=%ld)", r->R_max[i], r->R_max_act[i]);
         printf("\n");
     }
-    if (r->nb_jobs == JOBS_MAX)
-        printf("  (liste tronquée à %d jobs)\n", JOBS_MAX);
+    if (incomplet)
+        printf("  (liste incomplète : jobs non terminés ou non mémorisés)\n");
 }
 
 int main(int argc, char *argv[])
@@ -127,34 +157,47 @@ int main(int argc, char *argv[])
     int plafonne;
     long H = hyperperiode(&e, DUREE_MAX, &plafonne);
     if (duree <= 0) duree = H;
-    int complete = !plafonne && duree >= H;   /* la simulation couvre-t-elle tous les scénarios ? */
 
     if (plafonne)
         printf("Hyperpériode (PPCM des périodes) > %ld -> simulation limitée à %ld\n",
                DUREE_MAX, duree);
     else
         printf("Hyperpériode (PPCM des périodes) = %ld -> durée de simulation = %ld\n", H, duree);
-    if (!complete)
-        printf("ATTENTION : la simulation ne couvre pas l'hyperpériode. Une échéance ratée\n"
-               "reste une preuve de non-faisabilité, mais l'absence d'échec ne prouve rien.\n");
+    if (plafonne || duree < H)
+        printf("Remarque : la simulation ne couvre pas l'hyperpériode. Une échéance ratée\n"
+               "reste une preuve de non-faisabilité ; l'absence d'échec ne prouve la\n"
+               "faisabilité que si la durée atteint max D (priorités fixes, préemptif) ou\n"
+               "la période active (EDF, préemptif). Sinon : NON CONCLUANT, noté (*).\n");
     printf("Hypothèses : monoprocesseur, tâches indépendantes, toutes activées à t = 0,\n"
            "D <= T, priorité HPF : valeur plus grande = plus prioritaire.\n");
 
     /* Résultats pour le tableau récapitulatif */
     int  theorie[NB_POLITIQUES];
-    ResultatSim sim_p[NB_POLITIQUES], sim_np[NB_POLITIQUES];
+    int  concluant_p[NB_POLITIQUES], concluant_np[NB_POLITIQUES];
+    static ResultatSim sim_p[NB_POLITIQUES], sim_np[NB_POLITIQUES];
     long R[TACHES_MAX];
+    int  une_non_concluante = 0;
 
     for (int p = 0; p < NB_POLITIQUES; p++) {
         if (!choisies[p]) continue;
         theorie[p] = analyser(&e, (Politique)p, R, verbeux);
 
+        /* la durée suffit-elle pour conclure, dans chaque mode ? */
+        long nec_p  = duree_necessaire(&e, (Politique)p, 1, H, plafonne);
+        long nec_np = duree_necessaire(&e, (Politique)p, 0, H, plafonne);
+        concluant_p[p]  = nec_p  >= 0 && duree >= nec_p;
+        concluant_np[p] = nec_np >= 0 && duree >= nec_np;
+
         /* simulation détaillée dans le mode demandé, l'autre mode en silence */
-        simuler(&e, (Politique)p, 1, duree, complete, preemptif ? affichage : 0, verbeux, &sim_p[p]);
-        simuler(&e, (Politique)p, 0, duree, complete, preemptif ? 0 : affichage, verbeux, &sim_np[p]);
+        simuler(&e, (Politique)p, 1, duree, concluant_p[p], preemptif ? affichage : 0,
+                verbeux, &sim_p[p], NULL);
+        simuler(&e, (Politique)p, 0, duree, concluant_np[p], preemptif ? 0 : affichage,
+                verbeux, &sim_np[p], NULL);
+        if ((!concluant_p[p] && sim_p[p].echecs == 0) || (!concluant_np[p] && sim_np[p].echecs == 0))
+            une_non_concluante = 1;
 
         if (p == EDF)
-            temps_reponse_par_activation(&e, &sim_p[p]);
+            reponses_deroulement_synchrone(&e, &sim_p[p], duree);
 
         if (!plafonne && duree == H && (sim_p[p].reliquat > 0 || sim_np[p].reliquat > 0))
             printf("Attention : du travail reste en attente à t = H, le motif ne se répète pas\n"
@@ -170,6 +213,29 @@ int main(int argc, char *argv[])
                    " (tâches qui respectent leur échéance).\n",
                    coherent ? "==" : "!= (ATTENTION)");
         }
+
+        /* EDF : R de Spuri et pire cas observé sur toute l'hyperpériode.
+         * Spuri couvre tous les scénarios (dont le synchrone) avec des égalités
+         * d'échéance défavorables : on doit avoir R >= observé. L'égalité est
+         * atteinte quand le pire scénario apparaît dans le déroulement synchrone. */
+        if (p == EDF && theorie[p] != 0 && R[0] != R_INFINI) {
+            if (plafonne || duree < H || sim_p[p].echecs > 0) {
+                printf("Contrôle Spuri : non effectué (il faut une simulation sans échec\n"
+                       "sur toute l'hyperpériode).\n");
+            } else {
+                int egal = 1, inferieur = 0;
+                for (int i = 0; i < e.n; i++) {
+                    if (R[i] != sim_p[p].R_max[i]) egal = 0;
+                    if (R[i] <  sim_p[p].R_max[i]) inferieur = 1;
+                }
+                printf("Contrôle Spuri : R (Spuri) %s pire temps de réponse observé sur\n"
+                       "l'hyperpériode%s.\n",
+                       egal ? "==" : inferieur ? "< (ATTENTION)" : ">=",
+                       egal || inferieur ? ""
+                       : "\n(Spuri couvre des scénarios décalés et tranche les égalités d'échéance\n"
+                         "au pire : il peut majorer strictement le déroulement synchrone)");
+            }
+        }
     }
 
     /* ---- Tableau récapitulatif ---- */
@@ -181,15 +247,15 @@ int main(int argc, char *argv[])
     for (int p = 0; p < NB_POLITIQUES; p++) {
         if (!choisies[p]) continue;
         char a[32], b[32];
-        verdict_sim(a, sizeof a, &e, &sim_p[p], complete);
-        verdict_sim(b, sizeof b, &e, &sim_np[p], complete);
+        verdict_sim(a, sizeof a, &e, &sim_p[p], concluant_p[p]);
+        verdict_sim(b, sizeof b, &e, &sim_np[p], concluant_np[p]);
         printf("| %-9s | %-14s | %-19s | %-19s |\n", nom_politique((Politique)p),
                theorie[p] == 1 ? "FAISABLE" : theorie[p] == 0 ? "NON FAISABLE" : "indecis",
                a, b);
     }
     printf("+-----------+----------------+---------------------+---------------------+\n");
     printf("(NON (t=x, tâche) : première échéance ratée à l'instant x)\n");
-    if (!complete)
-        printf("(*) durée de simulation < hyperpériode : non concluant\n");
+    if (une_non_concluante)
+        printf("(*) aucun échec observé, mais la durée simulée est trop courte pour conclure\n");
     return 0;
 }

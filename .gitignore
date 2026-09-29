@@ -1,2 +1,5 @@
 ordo
 *.o
+ordo_san
+ordo_san.err
+*.dSYM/

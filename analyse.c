@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include <limits.h>
+#include <string.h>
 #include "analyse.h"
+#include "simulateur.h"
 
 const char *nom_politique(Politique p)
 {
@@ -36,25 +38,31 @@ int est_priorite_fixe(Politique p)
 /* politique, utilisée par qsort. En cas d'égalité, ordre du fichier.  */
 /* ------------------------------------------------------------------ */
 
+/* -1, 0 ou 1 selon que x <, = ou > y (sans soustraction : pas de dépassement) */
+static int comparer(long x, long y)
+{
+    return (x > y) - (x < y);
+}
+
 static int cmp_hpf(const void *a, const void *b)
 {
     const Tache *x = a, *y = b;
-    if (x->prio != y->prio) return y->prio - x->prio;   /* grande prio d'abord */
-    return x->id - y->id;
+    if (x->prio != y->prio) return comparer(y->prio, x->prio);   /* grande prio d'abord */
+    return comparer(x->id, y->id);
 }
 
 static int cmp_rm(const void *a, const void *b)
 {
     const Tache *x = a, *y = b;
-    if (x->T != y->T) return x->T - y->T;               /* petite période d'abord */
-    return x->id - y->id;
+    if (x->T != y->T) return comparer(x->T, y->T);               /* petite période d'abord */
+    return comparer(x->id, y->id);
 }
 
 static int cmp_dm(const void *a, const void *b)
 {
     const Tache *x = a, *y = b;
-    if (x->D != y->D) return x->D - y->D;               /* petite échéance d'abord */
-    return x->id - y->id;
+    if (x->D != y->D) return comparer(x->D, y->D);               /* petite échéance d'abord */
+    return comparer(x->id, y->id);
 }
 
 void trier_par_priorite(Ensemble *e, Politique p)
@@ -66,7 +74,7 @@ void trier_par_priorite(Ensemble *e, Politique p)
     case DM:  cmp = cmp_dm;  break;
     default:  return;        /* EDF : pas de priorité fixe */
     }
-    qsort(e->t, e->n, sizeof(Tache), cmp);
+    qsort(e->t, (size_t)e->n, sizeof(Tache), cmp);
 }
 
 /* ------------------------------------------------------------------ */
@@ -223,18 +231,29 @@ static int analyser_priorite_fixe(const Ensemble *orig, Politique p, long R[], i
     double Ub = borne_liu_layland(e.n);
     printf("U <= 1 : condition nécessaire respectée.\n");
     printf("Borne de Liu & Layland : U_RM = %d(2^(1/%d) - 1) = %.4f\n", e.n, e.n, Ub);
-    if (p == RM && d_egal_t(&e)) {
+
+    /* La borne vaut pour RM avec D = T. Elle s'applique donc aussi à HPF ou DM
+     * dès que D = T et que l'ordre obtenu est un ordre RM (périodes croissantes). */
+    int ordre_rm = 1;
+    for (int i = 1; i < e.n; i++)
+        if (e.t[i].T < e.t[i - 1].T) ordre_rm = 0;
+    if (d_egal_t(&e) && ordre_rm) {
+        if (p != RM)
+            printf("D = T et l'ordre %s est aussi un ordre RM : la borne s'applique.\n",
+                   nom_politique(p));
         if (U <= Ub)
             printf("U <= U_RM : condition suffisante => FAISABLE (confirmé ci-dessous).\n");
         else
             printf("U_RM < U <= 1 : la charge ne permet pas de conclure.\n");
     } else {
+        const char *raison = d_egal_t(&e) ? "l'ordre de priorité n'est pas celui de RM"
+                                          : "certaines tâches ont D < T";
         if (U <= Ub)
-            printf("U <= U_RM, mais cette condition suffisante n'est démontrée que pour\n"
-                   "RM avec D = T : on ne peut pas conclure pour %s.\n", nom_politique(p));
+            printf("U <= U_RM, mais la borne n'est démontrée que pour RM avec D = T\n"
+                   "(ici, %s) : on ne peut pas conclure par la charge.\n", raison);
         else
             printf("U_RM < U <= 1 : la charge ne permet pas de conclure\n"
-                   "(la borne ne vaut d'ailleurs que pour RM avec D = T).\n");
+                   "(la borne ne s'appliquerait d'ailleurs pas : %s).\n", raison);
     }
 
     /* ---- Étape 2 : temps de réponse (nécessaire et suffisante) ---- */
@@ -264,8 +283,129 @@ static int analyser_priorite_fixe(const Ensemble *orig, Politique p, long R[], i
     return faisable;
 }
 
-static int analyser_edf(const Ensemble *e, int trace)
+/* ------------------------------------------------------------------ */
+/* EDF : pire temps de réponse par la méthode de Spuri (cours p.133)   */
+/* ------------------------------------------------------------------ */
+
+/* Au-delà de ce nombre (estimé) d'unités de temps simulées, on renonce. */
+#define SPURI_TRAVAIL_MAX 200000000L
+/* Nombre de couples a:r affichés par tâche sans l'option -v */
+#define SPURI_AFFICHAGE   12
+
+/* Ensemble A_i des instants a à examiner pour la tâche i (Spuri 1996) :
+ * a = k.Tj + Dj - Di >= 0, pour toute tâche j (i comprise) et tout k >= 0,
+ * avec a < L. Marque dans candidat[a] ; retourne le nombre d'instants. */
+static long instants_candidats(const Ensemble *e, int i, long L, char candidat[])
 {
+    long nb = 0;
+    memset(candidat, 0, (size_t)L);
+    for (int j = 0; j < e->n; j++) {
+        for (long a = (long)e->t[j].D - e->t[i].D; a < L; a += e->t[j].T) {
+            if (a >= 0 && !candidat[a]) { candidat[a] = 1; nb++; }
+        }
+    }
+    return nb;
+}
+
+/* Temps de réponse r_i(a) : scénario où toutes les autres tâches sont activées
+ * à t = 0 et la tâche i à a (ses jobs précédents à a - Ti, a - 2Ti... >= 0).
+ * On réutilise le simulateur (EDF préemptif) avec des dates de 1re activation ;
+ * la tâche i y perd les égalités d'échéance (cas le plus défavorable, comme
+ * dans l'analyse de Spuri). Avec la règle « la tâche en cours garde le
+ * processeur », le résultat ne serait plus une borne sûre : des tests aléatoires
+ * trouvent alors des jobs plus lents dans la simulation que ce max.
+ * Le job activé à a appartient à une période active de longueur <= L (celle du
+ * scénario synchrone est la plus longue) : il est fini avant a + L. */
+static long reponse_spuri(const Ensemble *e, int i, long a, long L)
+{
+    static Ensemble s;               /* static : évite une grosse copie sur la pile */
+    static ResultatSim rs;
+    s = *e;
+    for (int k = 0; k < s.n; k++) s.t[k].S = 0;
+    s.t[i].S = a % e->t[i].T;
+
+    JobSuivi suivi = { i, a, -1 };
+    simuler(&s, EDF, 1, a + L + 1, 1, 0, 0, &rs, &suivi);
+    return suivi.fin < 0 ? R_INFINI : suivi.fin - a;
+}
+
+/* Pire temps de réponse EDF de chaque tâche (R[id]) : R_i = max sur a de A_i
+ * de r_i(a). Retourne 1 si R_i <= D_i pour tout i, 0 sinon, -1 si le calcul
+ * est trop long (période active trop grande). */
+static int analyser_spuri(const Ensemble *e, long L, long R[], int trace)
+{
+    printf("\n-- Pire temps de réponse : méthode de Spuri (cours p.133) --\n");
+    printf("Pour chaque tâche i et chaque instant a de A_i = { k.Tj + Dj - Di >= 0 } dans\n"
+           "[0, L[ : scénario où les autres tâches sont activées à t = 0 et la tâche i à a\n"
+           "(ses jobs précédents à a - Ti, a - 2Ti... >= 0). r_i(a) = temps de réponse du\n"
+           "job activé à a, puis R_i = max r_i(a).\n");
+
+    /* estimation du coût : une simulation de a + L unités par instant candidat */
+    char *candidat = malloc((size_t)L);
+    if (candidat == NULL) return -1;
+    long travail = 0;
+    for (int i = 0; i < e->n && travail <= SPURI_TRAVAIL_MAX; i++) {
+        instants_candidats(e, i, L, candidat);
+        for (long a = 0; a < L; a++)
+            if (candidat[a]) travail += (a + L) * e->n;
+    }
+    if (travail > SPURI_TRAVAIL_MAX) {
+        printf("Période active trop longue (L = %ld) : calcul omis.\n", L);
+        for (int i = 0; i < e->n; i++) R[e->t[i].id] = R_INFINI;
+        free(candidat);
+        return -1;
+    }
+
+    for (int i = 0; i < e->n; i++) {
+        long nb = instants_candidats(e, i, L, candidat), vus = 0;
+        long pire = -1, a_pire = -1;
+        printf("  %-10s", e->t[i].nom);
+        for (long a = 0; a < L; a++) {
+            if (!candidat[a]) continue;
+            long r = reponse_spuri(e, i, a, L);
+            if (r == R_INFINI) { pire = R_INFINI; a_pire = a; break; }
+            if (r > pire) { pire = r; a_pire = a; }
+            if (trace || vus < SPURI_AFFICHAGE) {
+                if (vus > 0 && vus % 6 == 0) printf("\n  %-10s", "");   /* 6 couples par ligne */
+                printf(" a=%ld:r=%ld", a, r);
+            }
+            vus++;
+        }
+        if (!trace && nb > SPURI_AFFICHAGE) printf(" ...");
+        if (pire == R_INFINI) printf("\n  %-10s -> job activé à %ld non terminé (ANOMALIE)", "", a_pire);
+        else                  printf("\n  %-10s -> R = %ld (a = %ld)", "", pire, a_pire);
+        if (!trace && nb > SPURI_AFFICHAGE) printf("   [%ld instants examinés, -v pour tous les voir]", nb);
+        printf("\n");
+        R[e->t[i].id] = pire;
+    }
+    free(candidat);
+
+    int faisable = 1;
+    printf("+------------+------+------+------+------+----------+\n");
+    printf("| %-10s | %4s | %4s | %4s | %4s | %-8s |\n", "Tache", "C", "D", "T", "R", "R <= D ?");
+    printf("+------------+------+------+------+------+----------+\n");
+    for (int i = 0; i < e->n; i++) {
+        const Tache *t = &e->t[i];
+        long r = R[t->id];
+        int ok = r != R_INFINI && r <= t->D;
+        if (!ok) faisable = 0;
+        char rs[16];
+        if (r == R_INFINI) snprintf(rs, sizeof rs, "?");
+        else               snprintf(rs, sizeof rs, "%ld", r);
+        printf("| %-10s | %4d | %4d | %4d | %4s | %-8s |\n",
+               t->nom, t->C, t->D, t->T, rs, ok ? "oui" : "NON");
+    }
+    printf("+------------+------+------+------+------+----------+\n");
+    printf("(À échéance égale, la tâche étudiée passe ici en dernier : c'est le cas le\n"
+           "plus défavorable, R est donc valable quelle que soit la règle d'égalité. La\n"
+           "simulation, où la tâche en cours garde le processeur, peut observer moins.)\n");
+    return faisable;
+}
+
+static int analyser_edf(const Ensemble *e, long R[], int trace)
+{
+    for (int i = 0; i < e->n; i++) R[e->t[i].id] = R_INFINI;
+
     double U = charge(e);
     afficher_charge(e, U);
     if (charge_superieure_a_1(e->t, e->n)) {
@@ -273,19 +413,29 @@ static int analyser_edf(const Ensemble *e, int trace)
         return 0;
     }
 
-    /* Période d'étude (cours p.127-131) : le pire cas se trouve dedans. */
+    /* Période d'étude (cours p.127-131) : si une échéance doit être ratée, la
+     * première l'est dans la 1re période active du scénario synchrone. */
     printf("\n-- Période d'étude (busy period) : t = W(t) --\n");
     long bp = periode_active(e, trace);
-    printf("Période active = %ld\n\n", bp);
+    printf("Période active L = %ld\n", bp);
+
+    int spuri = analyser_spuri(e, bp, R, trace);
 
     if (d_egal_t(e)) {
-        printf("D = T pour toutes les tâches : EDF est optimal et la condition\n"
+        printf("\nD = T pour toutes les tâches : EDF est optimal et la condition\n"
                "U <= 1 est nécessaire ET suffisante => FAISABLE.\n");
+        if (spuri == 0)
+            printf("ATTENTION : incohérence, la méthode de Spuri trouve R > D.\n");
         return 1;
     }
-    printf("Il existe des tâches avec D < T : U <= 1 n'est que nécessaire.\n"
-           "=> On ne peut pas conclure par la charge, la simulation tranche.\n");
-    return -1;
+    printf("\nIl existe des tâches avec D < T : U <= 1 n'est que nécessaire.\n");
+    if (spuri == -1) {
+        printf("=> Méthode de Spuri non appliquée : la simulation tranche.\n");
+        return -1;
+    }
+    printf("=> La méthode de Spuri tranche : %s.\n",
+           spuri ? "R <= D pour toutes les tâches" : "une tâche a R > D");
+    return spuri;
 }
 
 int analyser(const Ensemble *e, Politique p, long R[], int trace)
@@ -294,7 +444,7 @@ int analyser(const Ensemble *e, Politique p, long R[], int trace)
     printf("(%s)\n\n", description_politique(p));
 
     int res = est_priorite_fixe(p) ? analyser_priorite_fixe(e, p, R, trace)
-                                   : analyser_edf(e, trace);
+                                   : analyser_edf(e, R, trace);
 
     printf("\n=> Analyse théorique %s (préemptif) : %s\n", nom_politique(p),
            res == 1 ? "FAISABLE" : res == 0 ? "NON FAISABLE" : "INDÉCIS (voir simulation)");

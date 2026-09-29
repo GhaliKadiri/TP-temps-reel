@@ -25,17 +25,30 @@ typedef struct {
     int  nb_jobs;
 } ResultatSim;
 
-/* Simule l'exécution de l'ensemble de tâches (toutes activées à t = 0)
- * sur [0, duree[ avec la politique donnée.
+/* Job « surveillé » (méthode de Spuri) : on veut la date de fin du job de la
+ * tâche 'tache' activé à 'activation'. La simulation s'arrête dès qu'il est
+ * terminé ; fin = -1 s'il ne l'est pas à la fin de la simulation.
+ * Pour obtenir le cas le plus défavorable, cette tâche perd toutes les
+ * égalités d'échéance (EDF). */
+typedef struct {
+    int  tache;
+    long activation;
+    long fin;
+} JobSuivi;
+
+/* Simule l'exécution de l'ensemble de tâches sur [0, duree[ avec la politique
+ * donnée. La tâche i est activée à S, S + T, S + 2T... (S = 0 pour les tâches
+ * lues dans le fichier : activation simultanée à t = 0).
  *   preemptif : 1 = préemptif, 0 = non préemptif
- *   duree_complete : 1 si duree couvre l'hyperpériode (sinon, l'absence
+ *   duree_complete : 1 si duree suffit pour conclure (sinon, l'absence
  *               d'échec observé ne prouve pas la faisabilité)
  *   affichage : nombre d'unités de temps montrées dans le chronogramme
  *               et le journal (0 = rien n'est affiché)
  *   journal   : 1 = affiche les événements (activation, file parcourue,
  *               élection, préemption, fin, dépassement) sur la console
+ *   suivi     : job à surveiller (NULL si aucun)
  * Retourne le nombre d'échéances ratées. */
 int simuler(const Ensemble *e, Politique p, int preemptif, long duree, int duree_complete,
-            int affichage, int journal, ResultatSim *res);
+            int affichage, int journal, ResultatSim *res, JobSuivi *suivi);
 
 #endif

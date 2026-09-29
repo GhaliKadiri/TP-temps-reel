@@ -17,6 +17,7 @@ make                                   # compile -> ./ordo
 make exo1                              # démo exercice 1
 make exo2                              # démo exercice 2 (EDF, trace détaillée)
 make test                              # tests : exemples du cours + 300 jeux aléatoires
+make sanitize                          # exemples rejoués avec détection d'erreurs mémoire (ASan/UBSan)
 make resultats                         # regénère les sorties de référence de resultats/
 ```
 
@@ -39,7 +40,7 @@ Thread2     3   11  11  15
 Thread3     5   13  13  10
 ```
 
-Les valeurs sont des entiers (unité de temps : la seconde). Le nom fait au plus 10 caractères.
+Les valeurs sont des entiers (unité de temps : la seconde) : C, D et T de 1 à 10⁶, la priorité est un entier quelconque. Le nom fait au plus 10 caractères.
 
 **Pour HPF, une valeur plus grande signifie plus prioritaire.** C'est la convention du cours : p.93, la tâche de priorité 15 préempte celle de priorité 10. C'est aussi celle de POSIX `SCHED_FIFO` et de `PriorityParameters` en Java temps réel. Sur l'exemple de l'énoncé, cet ordre coïncide avec RM et DM : le verdict ne dépend donc pas de la convention choisie.
 
@@ -49,15 +50,15 @@ Les valeurs sont des entiers (unité de temps : la seconde). Le nom fait au plus
 
 | Fichier | Contenu |
 |---|---|
-| `tache.h/.c` | Modèle d'une tâche (C, D, T, P), lecture et contrôle du fichier |
-| `analyse.h/.c` | Attribution des priorités (HPF/RM/DM), charge U, borne de Liu & Layland, temps de réponse, période active, analyse EDF |
+| `tache.h/.c` | Modèle d'une tâche (C, D, T, P, et date de 1re activation S), lecture et contrôle du fichier |
+| `analyse.h/.c` | Attribution des priorités (HPF/RM/DM), charge U (test exact), borne de Liu & Layland, temps de réponse, période active, analyse EDF (méthode de Spuri) |
 | `simulateur.h/.c` | Simulateur en temps discret : files de jobs, élection, préemption, détection des dépassements, chronogramme, journal |
 | `main.c` | Options de la ligne de commande, enchaînement analyse + simulation, tableau récapitulatif |
 | `exemples/` | Jeux de tâches (énoncé et exemples du cours) |
 | `resultats/` | Sorties de référence du programme (la 1re ligne de chaque fichier donne la commande) |
 | `tests/` | `test_exemples.sh` (non-régression) et `test_aleatoire.py` (théorie ↔ simulation) |
 
-Compilation stricte `-std=c11 -Wall -Wextra -pedantic` : **aucun avertissement**.
+Compilation stricte `-std=c11 -Wall -Wextra -pedantic` : **aucun avertissement**. Le programme est aussi compilé et testé avec `-fsanitize=address,undefined` (`make sanitize`) : aucune erreur.
 
 ---
 
@@ -72,8 +73,8 @@ L'analyse suit les deux étapes du cours.
 U = Σ Cᵢ/Tᵢ = 2/7 + 3/11 + 5/13 = **0,943**
 
 - si U > 1 : non faisable. Ce test est fait **en entiers** (fractions exactes), sinon un ensemble dont U vaut exactement 1 serait rejeté à cause d'une erreur d'arrondi : en virgule flottante, 1/5 + 2/5 + 3/10 + 1/10 = 1,0000000000000002 (voir `exemples/charge_exactement_1.txt`) ;
-- la borne de Liu & Layland U_RM = n(2^(1/n) − 1) = 3(2^(1/3) − 1) = **0,7798**. Le cours p.119 écrit 0,779 ; c'est la même valeur, arrondie différemment. C'est une condition suffisante, mais **seulement pour RM avec D = T** ;
-- ici 0,7798 < U ≤ 1 : **la charge ne permet pas de conclure**.
+- la borne de Liu & Layland U_RM = n(2^(1/n) − 1) = 3(2^(1/3) − 1) = **0,7798**. Le cours p.119 écrit 0,779 ; c'est la même valeur, arrondie différemment. C'est une condition suffisante **pour RM avec D = T**. Elle s'applique donc aussi à HPF ou DM quand D = T et que l'ordre obtenu est celui des périodes croissantes. C'est le cas ici : Thread1 > Thread2 > Thread3 est à la fois l'ordre HPF et l'ordre RM. Le programme le vérifie avant d'utiliser la borne ;
+- ici 0,7798 < U ≤ 1 : **la charge ne permet pas de conclure** (même conclusion que le cours p.119).
 
 **Étape 2 : temps de réponse (condition nécessaire et suffisante, D ≤ T)**
 
@@ -105,10 +106,10 @@ Depasse                 X            X
 ### Q2. Nombre quelconque de tâches
 
 Les tâches sont lues depuis un fichier, jusqu'à `TACHES_MAX` = 64. Rien n'est codé en dur, il suffit d'écrire un autre fichier. La lecture refuse les données incohérentes :
-- valeurs ≤ 0 ;
+- C, D ou T hors de [1, 10⁶], ou priorité hors des entiers représentables. Les nombres sont lus avec `strtol` et contrôlés, pas avec `sscanf("%d")`, dont le comportement est indéfini en cas de dépassement ;
 - **C > D** (la tâche ne peut jamais respecter son échéance) ;
 - **D > T** (hors du modèle du cours) ;
-- ligne mal formée.
+- ligne mal formée : champ manquant ou en trop (un commentaire `#` en fin de ligne est accepté), nom de plus de 10 caractères, ligne de plus de 254 caractères.
 
 ### Q3. Autres ordonnanceurs statiques : RM et DM
 
@@ -160,15 +161,15 @@ Remarque : ici, le **non préemptif réussit alors que le préemptif échoue**. 
 À chaque **événement d'ordonnancement** (activation ou fin d'un job), le simulateur **parcourt la file d'attente** des jobs prêts. Il élit celui dont l'**échéance absolue** (date d'activation + D) est la plus proche. La priorité d'une tâche change donc d'une activation à l'autre : c'est une priorité dynamique. Avec `-v`, le journal affiche la file parcourue et la décision prise à chaque événement.
 
 Choix d'implémentation :
-- **Égalité d'échéance** : la tâche en cours garde le processeur, ce qui évite une préemption inutile. Sinon, on suit l'ordre du fichier.
+- **Égalité d'échéance** : la tâche en cours garde le processeur, ce qui évite une préemption inutile. Sinon, on suit l'ordre du fichier. (Exception : dans les scénarios de la méthode de Spuri, la tâche étudiée perd les égalités, voir Q2.)
 - **Job en retard** : il continue son exécution, et le job suivant de la même tâche attend derrière lui (file FIFO par tâche). Le dépassement est signalé à l'instant de l'échéance.
 - **Durée de simulation** : PPCM des périodes (cours p.126). Toutes les situations possibles sont couvertes pour des tâches activées ensemble à t = 0.
 
 Analyse théorique associée :
 - U > 1 : non faisable ;
+- période d'étude (busy period, cours p.129) : L = W(L) = Σ ⌈L/Tᵢ⌉ Cᵢ, en partant de t = 1. Pour l'exemple, elle vaut **39** ;
 - **D = T et U ≤ 1 : faisable**, car EDF est optimal et la condition de charge est alors nécessaire **et** suffisante ;
-- D < T : U ≤ 1 n'est plus que nécessaire, et c'est la simulation qui tranche ;
-- période d'étude (busy period, cours p.129) : t = W(t) = Σ ⌈t/Tᵢ⌉ Cᵢ. Pour l'exemple, elle vaut **39**.
+- D < T : U ≤ 1 n'est plus que nécessaire. C'est la **méthode de Spuri** (cours p.133, détaillée en Q2) qui tranche : faisable si et seulement si Rᵢ ≤ Dᵢ pour toute tâche. Elle donne aussi les pires temps de réponse quand D = T.
 
 ### Q2. Vérification par la trace
 
@@ -192,20 +193,54 @@ Le moment clé, tel que le journal l'affiche (`-v`) :
 
 Thread3 a une échéance à 13, plus proche que celle de Thread1 (14) : **EDF la laisse finir**. HPF, au contraire, la préemptait, et c'est ce qui la faisait échouer.
 
-**Temps de réponse par activation** (ensemble A du cours p.133 : les activations de la période active) :
+**Faisabilité et période active.** Pour des tâches activées ensemble à t = 0, avec D ≤ T et U ≤ 1 : si EDF rate une échéance, la première est ratée dans la **1re période active** [0, L] (Baruah, Rosier et Howell, 1990 ; Spuri, 1996). Simuler jusqu'à L suffit donc pour conclure. Le programme en tient compte : avec `-d`, un verdict EDF préemptif est concluant dès que la durée atteint L (voir § 6). Les tests aléatoires le vérifient aussi : la 1re échéance ratée tombe toujours au plus tard à t = L.
+
+**Pire temps de réponse : méthode de Spuri (cours p.133).** Le cours p.125 prévient que, avec EDF, le pire temps de réponse n'est pas forcément obtenu à la 1ʳᵉ activation. La p.133 le définit comme le maximum de rᵢ(a) sur un ensemble A d'instants d'activation. C'est la méthode de Spuri (1996). Pour chaque tâche i :
+- A_i = { k·Tⱼ + Dⱼ − Dᵢ ≥ 0, pour toute tâche j et tout k ≥ 0 } ∩ [0, L[ ;
+- pour chaque a de A_i, on prend le scénario où **toutes les autres tâches sont activées à t = 0 et la tâche i à a** (ses jobs précédents à a − Tᵢ, a − 2Tᵢ… ≥ 0) ;
+- rᵢ(a) = temps de réponse du job activé à a, et Rᵢ = max rᵢ(a).
+
+Le programme calcule chaque rᵢ(a) avec **le même simulateur**. Chaque tâche a une date de 1re activation S, comme dans le modèle du cours p.93 : elle vaut 0 pour les tâches lues, et seul ce calcul la décale. Dans ces scénarios, la tâche étudiée **perd les égalités d'échéance**. C'est le cas le plus défavorable, celui que suppose l'analyse de Spuri : Rᵢ est ainsi un majorant sûr, quelle que soit la règle d'égalité. Avec la règle du simulateur (« la tâche en cours garde le processeur »), ce n'était pas le cas : sur des jeux aléatoires, la simulation trouvait parfois un job plus lent que ce maximum.
+
+Sortie de `./ordo exemples/taches_tp.txt -p edf -v` :
 
 ```
-Temps de réponse de chaque activation a dans la période active [0, 39[ :
+  Thread1    a=0:r=2 a=4:r=2 a=6:r=4 a=7:r=5 a=14:r=2 a=15:r=2
+             a=19:r=4 a=21:r=3 a=26:r=2 a=28:r=2 a=32:r=3 a=35:r=2
+             a=37:r=2
+             -> R = 5 (a = 7)
+  Thread2    a=0:r=5 a=2:r=8 a=3:r=9 a=10:r=3 a=11:r=6 a=15:r=8
+             a=17:r=8 a=22:r=5 a=24:r=4 a=28:r=8 a=31:r=7 a=33:r=6
+             a=38:r=3
+             -> R = 9 (a = 3)
+  Thread3    a=0:r=10 a=1:r=11 a=8:r=6 a=9:r=10 a=13:r=9 a=15:r=9
+             a=20:r=10 a=22:r=11 a=26:r=8 a=29:r=6 a=31:r=10 a=36:r=9
+             -> R = 11 (a = 1)
+```
+
+| Tâche | D | R (Spuri) | Pire cas observé sur l'hyperpériode |
+|---|---|---|---|
+| Thread1 | 7 | 5 | 5 |
+| Thread2 | 11 | 9 | 9 |
+| Thread3 | 13 | 11 | 10 |
+
+Ce qu'on en retire :
+- **Le pire cas n'est pas à la 1ʳᵉ activation** : pour Thread1, r = 5 à a = 7, contre 2 à a = 0 (cours p.125).
+- **Thread2 : R = 9 pour a = 3**, c'est-à-dire Thread1 et Thread3 activées à 0 et Thread2 à 3. Ce scénario n'existe pas dans la 1re période active du déroulement synchrone, où le maximum de Thread2 n'est que 6. Il réapparaît plus loin dans ce déroulement : le processeur est libre à t = 908–909, puis Thread1 et Thread3 sont activées ensemble à t = 910 (= 130 × 7 = 70 × 13), et Thread2 à t = 913 (= 83 × 11). C'est exactement le décalage a = 3, d'où le r = 9 observé à a = 913. La période active suffit donc bien à trouver le pire temps de réponse, **à condition d'examiner les scénarios décalés de Spuri**, et pas seulement le déroulement synchrone.
+- **Thread3 : R = 11 pour a = 1, alors que la simulation observe au plus 10.** Dans ce scénario, Thread3 (activée à 1, échéance 14) s'exécute de 5 à 7. À t = 7, Thread1 est activée avec la même échéance 14. Si Thread3 perd l'égalité, elle finit à 12 (r = 11). Avec la règle du simulateur, elle garde le processeur et finit à 10 (r = 9). **Les temps de réponse dépendent donc de la règle d'égalité, pas le verdict.**
+- Le programme vérifie automatiquement que R (Spuri) ≥ pire cas observé sur l'hyperpériode, et signale une égalité ou un écart (`Contrôle Spuri`). Ici, toutes les valeurs restent sous les échéances : 5 ≤ 7, 9 ≤ 11, 11 ≤ 13.
+
+Le programme affiche aussi les temps de réponse du **déroulement synchrone** dans sa 1re période active. Ils viennent de la simulation EDF préemptive et ne constituent pas l'ensemble A de Spuri :
+
+```
+Déroulement synchrone (simulation EDF préemptive) : temps de réponse
+des activations dans [0, 39[ (1re période active) :
   Thread1    a=0:r=2 a=7:r=5 a=14:r=2 a=21:r=3 a=28:r=2 a=35:r=2  -> max = 5
-  Thread2    a=0:r=5 a=11:r=6 a=22:r=5 a=33:r=6  -> max = 6  (pire cas plus tard : r=9 pour a=913)
+  Thread2    a=0:r=5 a=11:r=6 a=22:r=5 a=33:r=6  -> max = 6  (plus tard : r=9 pour a=913)
   Thread3    a=0:r=10 a=13:r=9 a=26:r=8  -> max = 10
 ```
 
-Deux constats :
-- Le pire temps de réponse **n'est pas celui de la 1ʳᵉ activation** (Thread1 : r = 5 à a = 7, contre 2 à a = 0), comme l'annonce le cours p.125.
-- La période active suffit pour décider de la **faisabilité** : si une échéance doit être ratée, elle l'est dedans (vérifié sur les tests aléatoires). En revanche, dans ce déroulement précis, le pire temps de réponse d'une tâche peut apparaître plus tard. Pour Thread2, r = 9 à a = 913, parce que les tâches n'y sont plus activées simultanément. C'est pourquoi la simulation couvre toute l'hyperpériode : on obtient ainsi à la fois le verdict et les vrais pires temps de réponse. Ils restent tous sous les échéances : 5 ≤ 7, 9 ≤ 11, 10 ≤ 13.
-
-**Sur l'exemple du cours p.134**, τ1(2,4,4) et τ2(3,7,7) : le journal donne pour τ2 les temps de réponse **5, 5, 5, 4** aux activations 0, 7, 14 et 21, exactement comme dans le cours. Extrait :
+**Sur l'exemple du cours p.134**, τ1(2,4,4) et τ2(3,7,7) : le journal donne pour τ2 les temps de réponse **5, 5, 5, 4** aux activations 0, 7, 14 et 21, exactement comme dans le cours. Le cours déroule toute l'hyperpériode (28), alors que la période active ne vaut que 7. Le tableau du déroulement synchrone ne contient donc, pour τ2, que a = 0 ; les autres valeurs sont dans le journal. La méthode de Spuri donne R = 3 pour τ1 et **R = 6 pour τ2** (a = 1, puis égalité d'échéance perdue à t = 4 face à τ1). C'est plus que le 5 observé, pour la même raison que Thread3 ci-dessus. Extrait du journal :
 
 ```
   t=   0 : activation de tau1 (échéance absolue 4)
@@ -232,20 +267,25 @@ Le même ensemble de tâches (U = 0,943) **n'est pas faisable avec HPF, RM ou DM
 
 | Jeu de tâches | Attendu (cours ou calcul à la main) | Obtenu |
 |---|---|---|
-| `taches_tp.txt` | R = 2, 5, 17 → HPF/RM/DM non faisables ; EDF faisable | ✅ |
+| `taches_tp.txt` | R = 2, 5, 17 → HPF/RM/DM non faisables ; EDF faisable, Spuri : R = 5, 9, 11 ≥ observés 5, 9, 10 | ✅ |
 | `cours_cas2.txt` (p.123) | R₃ = 17 ≤ 17 → faisable | ✅ |
-| `cours_optimalite.txt` (p.136) | RM échoue, DM et EDF réussissent | ✅ |
-| `cours_edf_p134.txt` (p.134) | temps de réponse de τ2 : 5, 5, 5, 4 | ✅ |
+| `cours_optimalite.txt` (p.136) | RM échoue, DM et EDF réussissent (EDF, D < T : tranché par Spuri, R = 3 et 5) | ✅ |
+| `cours_edf_p134.txt` (p.134) | temps de réponse de τ2 : 5, 5, 5, 4 ; Spuri : R = 3 et 6 ≥ observés 3 et 5 | ✅ |
 | `priorites_inversees.txt` | HPF : Thread1 R = 10 > 7 | ✅ |
 | `non_preemptif.txt` | préemptif OK, non préemptif rate à t = 6 | ✅ |
 | `surcharge.txt` | U = 1,25 > 1 → non faisable partout | ✅ |
 | `charge_exactement_1.txt` | U = 1 exactement → faisable (piège d'arrondi) | ✅ |
 
 Tout se relance avec **`make test`** :
-- `tests/test_exemples.sh` compare le tableau récapitulatif de chaque exemple au résultat attendu. Il vérifie aussi R₃ = 17 et la suite 5, 5, 5, 4 du cours p.134.
-- `tests/test_aleatoire.py` génère 300 jeux de tâches au hasard (graine fixe, donc résultat reproductible) et vérifie que la théorie et la simulation donnent toujours le même verdict. Pour EDF, il vérifie aussi que la première échéance ratée tombe dans la période active. Résultat : **0 erreur sur 1 200 cas**, et 0 aussi sur 2 000 cas avec `python3 tests/test_aleatoire.py 500`.
-- **Contrôle intégré au programme** : pour les priorités fixes en préemptif, il vérifie que les temps de réponse simulés sont égaux aux temps de réponse calculés.
-- Une relecture indépendante a par ailleurs recompilé le projet avec détection d'erreurs mémoire (ASan/UBSan) : aucune erreur.
+- `tests/test_exemples.sh` compare le tableau récapitulatif de chaque exemple au résultat attendu. Il vérifie aussi R₃ = 17, la suite 5, 5, 5, 4 du cours p.134 et les valeurs de Spuri (5, 9, 11 et 3, 6), ainsi que les pires cas observés.
+- `tests/test_aleatoire.py` tire 300 jeux de tâches au hasard, **tous avec U ≤ 1** : les autres sont rejetés, puisque U > 1 donne un verdict trivial. La graine est fixe, donc le résultat est reproductible. Pour chaque jeu, il vérifie que :
+  - la théorie et la simulation donnent le même verdict ;
+  - pour EDF, la 1re échéance ratée tombe dans la période active ;
+  - R (Spuri) ≥ pire cas observé.
+
+  Résultat : **257 jeux non triviaux** (la charge seule ne permet pas de conclure) et **0 erreur sur 1 200 cas**. Il y a aussi 0 erreur sur 4 000 cas avec `python3 tests/test_aleatoire.py 1000 5`.
+- **Contrôles intégrés au programme** : pour les priorités fixes en préemptif, les temps de réponse simulés doivent être égaux aux temps de réponse calculés ; pour EDF, R (Spuri) doit être ≥ au pire cas observé.
+- **`make sanitize`** recompile avec `-fsanitize=address,undefined` et rejoue tous les exemples avec plusieurs jeux d'options : aucune erreur.
 
 ---
 
@@ -256,11 +296,17 @@ Tout se relance avec **`make test`** :
 - D ≤ T. Les formules de temps de réponse utilisées ne sont valables que dans ce cas.
 - Le test des temps de réponse ne s'applique qu'au mode **préemptif**. Le non préemptif est évalué par simulation.
 - Temps discret : les valeurs sont entières, ce qui est le cas dans l'énoncé.
-- Si le PPCM des périodes dépasse 10⁶, ou si `-d` est plus court que l'hyperpériode, le programme le signale. Une échéance ratée reste une preuve de non-faisabilité, mais l'absence d'échec n'est alors plus concluante (marque `(*)` dans le récapitulatif).
+- Durée de simulation : par défaut l'hyperpériode H, limitée à 10⁶. Une échéance ratée prouve toujours la non-faisabilité. L'absence d'échec prouve la faisabilité si la durée atteint :
+  - **max D** pour les priorités fixes en préemptif : d'après l'instant critique, le 1er job de chaque tâche a le pire temps de réponse ;
+  - **la période active L** pour EDF en préemptif (voir Ex2 Q2) ;
+  - **H** en non préemptif, faute de résultat aussi simple : si tout est terminé à H, le déroulement se répète à l'identique.
+
+  Sinon, le verdict est marqué `(*)` (non concluant) dans le récapitulatif.
+- Méthode de Spuri : si la période active est très longue, le calcul est abandonné (plus de 2·10⁸ unités de temps simulées). L'EDF avec D < T reste alors indécis, et la simulation tranche.
 
 ### Pourquoi un simulateur plutôt que de vrais threads ?
 
-L'exercice 2 demande explicitement un « simulateur », et l'exercice 1 demande de « vérifier la faisabilité », c'est-à-dire de faire une analyse. On aurait pu lancer trois vrais threads POSIX (`pthread_create`, politique `SCHED_FIFO`, cours PMT C) qui s'endorment 2, 3 et 5 secondes, mais :
+L'exercice 2 demande explicitement un « simulateur », et l'exercice 1 demande de « vérifier la faisabilité », c'est-à-dire de faire une analyse. On aurait pu lancer trois vrais threads POSIX (`pthread_create`, politique `SCHED_FIFO`, cours PMT C) qui calculent (attente active) pendant 2, 3 et 5 secondes, mais :
 - le résultat dépendrait de l'ordonnanceur de la machine. macOS n'est pas temps réel, et `SCHED_FIFO` demande les droits administrateur sous Linux ;
 - le temps d'une vraie exécution n'est jamais exactement de 2 s : les mesures seraient bruitées et différentes à chaque lancement ;
 - vérifier une hyperpériode de 1001 s prendrait près de 17 minutes.

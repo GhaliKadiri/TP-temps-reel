@@ -21,6 +21,20 @@ test: ordo
 	sh tests/test_exemples.sh
 	python3 tests/test_aleatoire.py 300
 
+# Compile une version instrumentée (ASan + UBSan) et l'exécute sur tous les
+# exemples avec plusieurs jeux d'options ; échoue au moindre message d'erreur.
+SAN_OPTIONS_LISTE = "-v -a 200" "-n -v -a 200" "-p edf -d 20" "-d 7"
+
+sanitize:
+	$(CC) $(CFLAGS) -g -fsanitize=address,undefined -fno-omit-frame-pointer \
+		-o ordo_san main.c tache.c analyse.c simulateur.c -lm
+	@err=0; for f in exemples/*.txt; do for o in $(SAN_OPTIONS_LISTE); do \
+		ASAN_OPTIONS=detect_leaks=0 ./ordo_san $$f $$o > /dev/null 2> ordo_san.err || err=1; \
+		if [ -s ordo_san.err ]; then echo "ERREUR : $$f $$o"; cat ordo_san.err; err=1; fi; \
+	done; done; rm -f ordo_san.err; \
+	if [ $$err -eq 0 ]; then echo "sanitize : aucune erreur mémoire ni comportement indéfini"; fi; \
+	exit $$err
+
 # Regénère les sorties de référence ; la 1re ligne de chaque fichier
 # indique la commande qui l'a produit.
 RESULTATS = \
@@ -41,6 +55,6 @@ resultats: ordo
 	done
 
 clean:
-	rm -f ordo *.o
+	rm -rf ordo ordo_san ordo_san.err ordo_san.dSYM *.o
 
-.PHONY: clean exo1 exo2 test resultats
+.PHONY: clean exo1 exo2 test sanitize resultats
